@@ -1,0 +1,20 @@
+
+Zadání zápočtového programu:
+Implementace hry Fangqi (pravidla: https://en.wikipedia.org/Fangqi) v Haskellu, je to něco jako čínský mlýnek. Fangqi je poměrně jednoduché, ale nenašel jsem žádnou existující počítačovou implementaci.
+
+Vstup i výstup by byl textový, deska by v průběhu hry byla zobrazena nějak takto:
+7|.......
+6|.ww....
+5|.......
+4|....b..
+3|.w.bb..
+2|.......
+1|.......
+ --------
+  abcdefg
+
+a hráč by třeba napsal "d4" aby provedl tah.
+
+Počítačový protivník by používal minimax algoritmus s heuristikou zohledňující zbývající počet kamenů na desce.
+
+repo: https://gitlab.mff.cuni.cz/moravem8/neproc_zapoctak_fangqi
