@@ -1,4 +1,5 @@
-
+import Data.Maybe (isNothing)
+import Debug.Trace (trace)
 {- 
 
 Xinjiang Fāngqí is played on a 7×7 board.
@@ -110,6 +111,7 @@ type FlattenedBoard = [(BoardField, Int, Int)]
 addCoordsToRow :: BoardRow -> Int -> FlattenedBoard
 addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
     where rowL = length row
+
 flattenWithCoords :: Board -> FlattenedBoard
 flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
 
@@ -117,20 +119,34 @@ flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
 -- play on the first free field from top left, if there is any
 playArbitraryMove :: Board -> Maybe Piece -> Board
 playArbitraryMove b piece = maybePlayMove b freeSpace piece
-    where freeSpace = getFreeSpace (flattenWithCoords b)
+    where freeSpace = getFreeSpace b
 
 maybePlayMove :: Board -> Maybe (Int, Int) -> Maybe Piece -> Board
 maybePlayMove b coords piece = maybe b (\c->dropPiece b c piece) coords 
 
-getFreeSpace :: FlattenedBoard -> Maybe (Int, Int)
-getFreeSpace [] = Nothing
-getFreeSpace ((field, row, col):fields)
-    | field == BoardField Nothing = Just (row, col)
-    | otherwise = getFreeSpace fields
+getFreeSpace :: Board -> Maybe (Int, Int)
+getFreeSpace b = getFreeSpace' $ flattenWithCoords b
+    where
+        getFreeSpace' :: FlattenedBoard -> Maybe (Int, Int)
+        getFreeSpace' [] = Nothing
+        getFreeSpace' ((field, row, col):fields)
+            | field == BoardField Nothing = Just (row, col)
+            | otherwise = getFreeSpace' fields
 
 
+-- players stop dropping stones when the board is filled
+dropPhaseEndCheck :: Board -> Bool
+dropPhaseEndCheck b = isNothing $ getFreeSpace b
 
-mainLoop :: IO()
-mainLoop = _
+-- have the computer take turns until the board is filled
+
+changeTurn :: Piece -> Piece
+changeTurn White = Black
+changeTurn Black = White
+
+mainLoop :: Board -> Piece -> Board
+mainLoop b playerTurn
+    | not $ dropPhaseEndCheck b = mainLoop (playArbitraryMove b (Just playerTurn)) (changeTurn playerTurn)
+    | otherwise = b --return the board at the end of the drop phase
 
 
