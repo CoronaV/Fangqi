@@ -4,9 +4,10 @@ import Board
     ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..) )
 import Player ()
 import Moves (Move(..),checkLegalAndResolve, changeTurn)
+import GHC.Utils.Misc (count)
 
 
-chessBoard = emptyBoard 8 8
+
 
 -- functions related to making moves
 -- there are 2 types of moves: placing a stone and moving a stone to a neighboring intersection (=field,square)
@@ -22,15 +23,6 @@ addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
 
 flattenWithCoords :: Board -> FlattenedBoard
 flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
-
-
--- players stop dropping stones when the board is filled
-dropPhaseEndCheck :: Board -> Bool
-dropPhaseEndCheck b = isNothing $ getSpaceOfType b (BoardField Nothing)
-
--- have the computer take turns until the board is filled
-
-
 
 
 --arguments: initial position -> first player to move -> final position
@@ -71,7 +63,7 @@ instance Player RandomAI where
     -- play on the first free field from top left, if there is any
     makeMove RandomAI (GameState b piece PhaseDrop) = Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
     makeMove RandomAI (GameState b piece PhaseRemove) = Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
-    makeMove RandomAI (GameState b piece PhaseShift) = Shift piece (0,0) (0,0) --TODO
+    makeMove RandomAI (GameState b piece PhaseShift) = Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
 
 
 --retire this in favor of isLegalMove and isLegalAnywhereMove?
@@ -85,6 +77,50 @@ getSpaceOfType b = getSpaceOfType' $ flattenWithCoords b
             | field == fieldtype = Just (row, col)
             | otherwise = getSpaceOfType' fields fieldtype
 
+-- counts the number of spaces of a type on the board
+getSpaceTypeNumber :: Board -> BoardField -> Int
+getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoords b
+    where
+        isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
+        isFieldType ft (ft2, _, _) = ft == ft2
+
+
 
 
 --get user input ->MoveType
+
+--debugging:
+chessBoard :: Board
+chessBoard = emptyBoard 8 8
+
+startState :: GameState
+startState = GameState chessBoard White PhaseDrop
+
+-- players stop dropping stones when the board is filled
+dropPhaseEndCheck :: GameState -> Bool
+dropPhaseEndCheck (GameState b _ _) = isNothing $ getSpaceOfType b (BoardField Nothing)
+
+sampleGameDropPhase :: GameState
+sampleGameDropPhase = playGame RandomAI RandomAI dropPhaseEndCheck startState
+
+nextPhase :: GameState -> GameState
+nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
+nextPhase (GameState b piece PhaseRemove) = GameState b piece PhaseShift
+nextPhase (GameState b piece PhaseShift) = GameState b piece PhaseShift --TODO
+
+-- players remove one stone each -> there should be two empty spaces
+removePhaseEndCheck :: GameState -> Bool
+removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing) >= 2
+
+
+sampleGameRemovePhase :: GameState
+sampleGameRemovePhase = playGame RandomAI RandomAI removePhaseEndCheck (nextPhase sampleGameDropPhase)
+
+-- make phase a class with this as method? or merge the endCheck methods into one since GameState contains Phase info?
+-- the game ends if there are no white or no black stones
+-- also TODO: draw on repetition of position, requires keeping history
+shiftPhaseEndCheck :: GameState -> Bool
+shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just White) == 0 || getSpaceTypeNumber b (BoardField $ Just Black) == 0
+
+sampleGameShiftPhase :: GameState
+sampleGameShiftPhase = playGame RandomAI RandomAI shiftPhaseEndCheck (nextPhase sampleGameRemovePhase) --TODO

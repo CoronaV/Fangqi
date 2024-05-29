@@ -7,7 +7,7 @@ Xinjiang Fāngqí is played on a 7×7 board.
 
 
 data Piece = Black | White
-    deriving Eq
+    deriving (Eq, Show)
 -- instance Show Piece where
 --     show :: Piece -> String
 --     show Black = "b"
@@ -69,5 +69,7 @@ emptyBoard :: Int -> Int -> Board
 emptyBoard rows cols = replicate rows (emptyRow cols)
 
 data Phase = PhaseDrop | PhaseRemove | PhaseShift
+    deriving Show
 -- board, whose move it is + what is the current phase?
 data GameState = GameState Board Piece Phase
+    deriving Show
