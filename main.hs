@@ -1,75 +1,10 @@
 import Data.Maybe (isNothing)
 import Debug.Trace (trace)
-{- 
-
-Xinjiang Fāngqí is played on a 7×7 board.
--}
-
-
-data Piece = Black | White
-    deriving Eq
--- instance Show Piece where
---     show :: Piece -> String
---     show Black = "b"
---     show White = "w"
-
--- "type" instead?
-data BoardField = BoardField (Maybe Piece)
-    deriving Eq
-instance Show BoardField where
-    show :: BoardField -> String
-    show (BoardField Nothing) = "."
-    show (BoardField ( Just Black)) = "b"
-    show (BoardField ( Just White)) = "w"
-
-type BoardRow = [BoardField]
-
--- the row index comes first!
-type Board = [BoardRow]
-
-boardRows :: Board -> Int
-boardRows = length
-
-boardCols :: Board -> Int
-boardCols (r:rs) = length r
-
-printBoardRow :: BoardRow -> String
-printBoardRow br = unwords (map show br)
-
-interleave :: [a] -> [a] -> [a]
-interleave xs ys = concat (zipWith (\x y -> [x,y]) xs ys)
-
-
-letters :: Int -> [Char]
-letters n = take n ['a'..]
-
-printBoardBottomEdge :: Board -> String
-printBoardBottomEdge b = " " ++ concat (replicate (2*l) "-") ++ "\n  " ++ interleave (letters l) (replicate l ' ')
-    where l = length b
-
-printBoard :: Board -> String
-printBoard b = unlines $ zipWith addBoardLeftEdge (map printBoardRow b) [1..]
-
-addBoardLeftEdge :: String -> Int -> String
-addBoardLeftEdge str rowNum = show rowNum ++ "|" ++ str
-
--- putStrLn is necessary to correctly display newlines (instead of show)
-displayBoard :: Board -> IO()
-displayBoard b = do
-        putStrLn $ printBoard b ++ printBoardBottomEdge b
-
-emptyField :: BoardField
-emptyField = BoardField Nothing
-
-emptyRow :: Int -> BoardRow
-emptyRow size = replicate size emptyField
-
-emptyBoard :: Int -> Int -> Board
-emptyBoard rows cols = replicate rows (emptyRow cols)
+import Board
+    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard )
 
 
 chessBoard = emptyBoard 8 8
-
 
 -- functions related to making moves
 -- there are 2 types of moves: placing a stone and moving a stone to a neighboring intersection (=field,square)
@@ -81,13 +16,6 @@ replaceByIndex :: [a] -> Int -> a -> [a]
 replaceByIndex [] _ _ = []
 replaceByIndex (x:xs) 0 a = a:xs
 replaceByIndex (x:xs) n a = x : replaceByIndex xs (n-1) a
-
-dropIsLegal :: Board -> (Int, Int) -> MoveLegality
-dropIsLegal b (i,j) = dropHereIsLegal (b!!i!!j)
-
-dropHereIsLegal :: BoardField -> Bool
-dropHereIsLegal (BoardField Nothing) = True
-dropHereIsLegal _ = False
 
 
 dropPiece :: Board -> (Int, Int) -> Maybe Piece -> Board
@@ -117,13 +45,15 @@ flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
 
 
 -- play on the first free field from top left, if there is any
-playArbitraryMove :: Board -> Maybe Piece -> Board
-playArbitraryMove b piece = maybePlayMove b freeSpace piece
+playArbitraryDrop :: Board -> Maybe Piece -> Board
+playArbitraryDrop b piece = maybePlayDrop b freeSpace piece
     where freeSpace = getFreeSpace b
 
-maybePlayMove :: Board -> Maybe (Int, Int) -> Maybe Piece -> Board
-maybePlayMove b coords piece = maybe b (\c->dropPiece b c piece) coords 
+maybePlayDrop :: Board -> Maybe (Int, Int) -> Maybe Piece -> Board
+maybePlayDrop b coords piece = maybe b (\c->dropPiece b c piece) coords 
 
+
+--retire this in favor of isLegalMove and isLegalAnywhereMove
 getFreeSpace :: Board -> Maybe (Int, Int)
 getFreeSpace b = getFreeSpace' $ flattenWithCoords b
     where
@@ -144,9 +74,43 @@ changeTurn :: Piece -> Piece
 changeTurn White = Black
 changeTurn Black = White
 
-mainLoop :: Board -> Piece -> Board
-mainLoop b playerTurn
-    | not $ dropPhaseEndCheck b = mainLoop (playArbitraryMove b (Just playerTurn)) (changeTurn playerTurn)
+
+--arguments: initial position -> first player to move -> final position
+dropPhase :: Board -> Piece -> Board
+dropPhase b playerTurn
+    | not $ dropPhaseEndCheck b = dropPhase (playArbitraryDrop b (Just playerTurn)) (changeTurn playerTurn)
     | otherwise = b --return the board at the end of the drop phase
 
 
+-- for a Shift move two coords are needed, start and destination
+-- for all types Piece is the color of the player making the move (not the color of the removed piece!)
+data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
+
+
+dropHereIsLegal :: BoardField -> Bool
+dropHereIsLegal (BoardField Nothing) = True
+dropHereIsLegal _ = False
+
+removeHereIsLegal :: BoardField -> Piece -> Bool
+removeHereIsLegal (BoardField (Just White)) Black = True
+removeHereIsLegal (BoardField (Just Black)) White = True
+removeHereIsLegal _ _ = False
+
+-- check if a move is legal
+canPlayMoveHere :: Board -> Move -> Bool
+canPlayMoveHere b ( Drop p (i,j) ) = dropHereIsLegal $ b!!i!!j
+canPlayMoveHere b ( Remove p (i,j) ) = removeHereIsLegal (b!!i!!j) p
+canPlayMoveHere b ( Shift p (i,j) (i2,j2) ) = False --TODO
+
+
+playArbitraryRemove :: Board -> Piece -> Board
+playArbitraryRemove b piece = maybePlayDrop b freeSpace (Just piece)
+    where freeSpace = getFreeSpace b
+
+-- -- 2nd phase: each player removes one of their opponent's stones
+-- removePhase :: Board -> Piece -> Board
+-- removePhase b playerTurn = playArbitraryRemove bAfterFirstRemove (changeTurn playerTurn) playArbitraryRemove
+--     where bAfterFirstRemove = playArbitraryRemove b playerTurn playArbitraryRemove
+
+
+--get user input ->MoveType
