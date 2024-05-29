@@ -67,3 +67,7 @@ emptyRow size = replicate size emptyField
 
 emptyBoard :: Int -> Int -> Board
 emptyBoard rows cols = replicate rows (emptyRow cols)
+
+data Phase = PhaseDrop | PhaseRemove | PhaseShift
+-- board, whose move it is + what is the current phase?
+data GameState = GameState Board Piece Phase

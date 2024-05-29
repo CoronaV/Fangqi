@@ -1,7 +1,9 @@
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, fromMaybe)
 import Debug.Trace (trace)
 import Board
-    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard )
+    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..) )
+import Player ()
+import Moves (Move(..),checkLegalAndResolve, changeTurn)
 
 
 chessBoard = emptyBoard 8 8
@@ -10,29 +12,7 @@ chessBoard = emptyBoard 8 8
 -- there are 2 types of moves: placing a stone and moving a stone to a neighboring intersection (=field,square)
 
 -- a placing move is legal if the intersection was empty before the move
-type MoveLegality = Bool
 
-replaceByIndex :: [a] -> Int -> a -> [a]
-replaceByIndex [] _ _ = []
-replaceByIndex (x:xs) 0 a = a:xs
-replaceByIndex (x:xs) n a = x : replaceByIndex xs (n-1) a
-
-
-dropPiece :: Board -> (Int, Int) -> Maybe Piece -> Board
-dropPiece b (i,j) piece = replaceByIndex b i newRow
-    where
-        newRow = dropInRow (b!!i) j piece
-        dropInRow :: BoardRow -> Int -> Maybe Piece -> BoardRow
-        dropInRow row colNum piece = replaceByIndex row colNum (BoardField piece)
-
-{-
-playInRow :: BoardRow -> Int -> Maybe Piece -> (Board, MoveLegality)
-playInRow row colNum piece = ( replaceByIndex row colNum (BoardField piece), dropIsLegal (row!!colNum) )
-
-playMove :: Board -> (Int, Int) -> Maybe Piece -> (Board, MoveLegality)
-playMove b (i,j) piece = (replaceByIndex b i newRow, legal)
-    where (newRow, legal) = playInRow (b!!i) j piece
--}
 
 type FlattenedBoard = [(BoardField, Int, Int)]
 
@@ -44,73 +24,67 @@ flattenWithCoords :: Board -> FlattenedBoard
 flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
 
 
--- play on the first free field from top left, if there is any
-playArbitraryDrop :: Board -> Maybe Piece -> Board
-playArbitraryDrop b piece = maybePlayDrop b freeSpace piece
-    where freeSpace = getFreeSpace b
-
-maybePlayDrop :: Board -> Maybe (Int, Int) -> Maybe Piece -> Board
-maybePlayDrop b coords piece = maybe b (\c->dropPiece b c piece) coords 
-
-
---retire this in favor of isLegalMove and isLegalAnywhereMove
-getFreeSpace :: Board -> Maybe (Int, Int)
-getFreeSpace b = getFreeSpace' $ flattenWithCoords b
-    where
-        getFreeSpace' :: FlattenedBoard -> Maybe (Int, Int)
-        getFreeSpace' [] = Nothing
-        getFreeSpace' ((field, row, col):fields)
-            | field == BoardField Nothing = Just (row, col)
-            | otherwise = getFreeSpace' fields
-
-
 -- players stop dropping stones when the board is filled
 dropPhaseEndCheck :: Board -> Bool
-dropPhaseEndCheck b = isNothing $ getFreeSpace b
+dropPhaseEndCheck b = isNothing $ getSpaceOfType b (BoardField Nothing)
 
 -- have the computer take turns until the board is filled
 
-changeTurn :: Piece -> Piece
-changeTurn White = Black
-changeTurn Black = White
+
 
 
 --arguments: initial position -> first player to move -> final position
-dropPhase :: Board -> Piece -> Board
-dropPhase b playerTurn
-    | not $ dropPhaseEndCheck b = dropPhase (playArbitraryDrop b (Just playerTurn)) (changeTurn playerTurn)
-    | otherwise = b --return the board at the end of the drop phase
+-- dropPhase :: Board -> Piece -> Board
+-- dropPhase b playerTurn
+--     | not $ dropPhaseEndCheck b = dropPhase (playArbitraryDrop b (Just playerTurn)) (changeTurn playerTurn)
+--     | otherwise = b --return the board at the end of the drop phase
 
-
--- for a Shift move two coords are needed, start and destination
--- for all types Piece is the color of the player making the move (not the color of the removed piece!)
-data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
-
-
-dropHereIsLegal :: BoardField -> Bool
-dropHereIsLegal (BoardField Nothing) = True
-dropHereIsLegal _ = False
-
-removeHereIsLegal :: BoardField -> Piece -> Bool
-removeHereIsLegal (BoardField (Just White)) Black = True
-removeHereIsLegal (BoardField (Just Black)) White = True
-removeHereIsLegal _ _ = False
-
--- check if a move is legal
-canPlayMoveHere :: Board -> Move -> Bool
-canPlayMoveHere b ( Drop p (i,j) ) = dropHereIsLegal $ b!!i!!j
-canPlayMoveHere b ( Remove p (i,j) ) = removeHereIsLegal (b!!i!!j) p
-canPlayMoveHere b ( Shift p (i,j) (i2,j2) ) = False --TODO
-
-
-playArbitraryRemove :: Board -> Piece -> Board
-playArbitraryRemove b piece = maybePlayDrop b freeSpace (Just piece)
-    where freeSpace = getFreeSpace b
 
 -- -- 2nd phase: each player removes one of their opponent's stones
 -- removePhase :: Board -> Piece -> Board
 -- removePhase b playerTurn = playArbitraryRemove bAfterFirstRemove (changeTurn playerTurn) playArbitraryRemove
 --     where bAfterFirstRemove = playArbitraryRemove b playerTurn playArbitraryRemove
+
+
+
+-- > phase end conditions where
+-- move function of player1 -> move function of player2 -> end eval function -> initial state -> final state
+playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> GameState
+playGame p1 p2 endCondition current
+    | endCondition current = current
+    | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
+
+
+-- randomPlayer :: Player
+-- randomPlayer gs = _
+
+-- "player" is an interface with a method for choosing moves
+class Player p where
+    makeMove :: p -> GameState -> Move
+
+data RandomAI = RandomAI
+
+
+instance Player RandomAI where
+    makeMove :: RandomAI -> GameState -> Move
+    -- if there is no legal move, we messed up, so the AI will just make whatever move and cause an exception down the line
+    -- play on the first free field from top left, if there is any
+    makeMove RandomAI (GameState b piece PhaseDrop) = Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
+    makeMove RandomAI (GameState b piece PhaseRemove) = Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
+    makeMove RandomAI (GameState b piece PhaseShift) = Shift piece (0,0) (0,0) --TODO
+
+
+--retire this in favor of isLegalMove and isLegalAnywhereMove?
+-- gets *any* space of the type for the random AI and for checking phase end conditions
+getSpaceOfType :: Board -> BoardField -> Maybe (Int, Int)
+getSpaceOfType b = getSpaceOfType' $ flattenWithCoords b
+    where
+        getSpaceOfType' :: FlattenedBoard -> BoardField -> Maybe (Int, Int)
+        getSpaceOfType' [] _ = Nothing
+        getSpaceOfType' ((field, row, col):fields) fieldtype
+            | field == fieldtype = Just (row, col)
+            | otherwise = getSpaceOfType' fields fieldtype
+
 
 
 --get user input ->MoveType
