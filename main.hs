@@ -3,7 +3,7 @@ import Debug.Trace (trace)
 import Board
     ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare )
 import Player ()
-import Moves (Move(..),checkLegalAndResolve, changeTurn)
+import Moves (Move(..),checkLegalAndResolve, changeTurn, Player (..), RandomAI (..), getSpaceOfType, getSpaceTypeNumber)
 import GHC.Utils.Misc (count)
 
 
@@ -15,14 +15,9 @@ import GHC.Utils.Misc (count)
 -- a placing move is legal if the intersection was empty before the move
 
 
-type FlattenedBoard = [(BoardField, Int, Int)]
 
-addCoordsToRow :: BoardRow -> Int -> FlattenedBoard
-addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
-    where rowL = length row
 
-flattenWithCoords :: Board -> FlattenedBoard
-flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
+
 
 
 --arguments: initial position -> first player to move -> final position
@@ -47,42 +42,9 @@ playGame p1 p2 endCondition current
     | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
 
 
--- randomPlayer :: Player
--- randomPlayer gs = _
-
--- "player" is an interface with a method for choosing moves
-class Player p where
-    makeMove :: p -> GameState -> Move
-
-data RandomAI = RandomAI
 
 
-instance Player RandomAI where
-    makeMove :: RandomAI -> GameState -> Move
-    -- if there is no legal move, we messed up, so the AI will just make whatever move and cause an exception down the line
-    -- play on the first free field from top left, if there is any
-    makeMove RandomAI (GameState b piece PhaseDrop) = Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
-    makeMove RandomAI (GameState b piece PhaseRemove) = Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
-    makeMove RandomAI (GameState b piece PhaseShift) = Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
 
-
---retire this in favor of isLegalMove and isLegalAnywhereMove?
--- gets *any* space of the type for the random AI and for checking phase end conditions
-getSpaceOfType :: Board -> BoardField -> Maybe (Int, Int)
-getSpaceOfType b = getSpaceOfType' $ flattenWithCoords b
-    where
-        getSpaceOfType' :: FlattenedBoard -> BoardField -> Maybe (Int, Int)
-        getSpaceOfType' [] _ = Nothing
-        getSpaceOfType' ((field, row, col):fields) fieldtype
-            | field == fieldtype = Just (row, col)
-            | otherwise = getSpaceOfType' fields fieldtype
-
--- counts the number of spaces of a type on the board
-getSpaceTypeNumber :: Board -> BoardField -> Int
-getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoords b
-    where
-        isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
-        isFieldType ft (ft2, _, _) = ft == ft2
 
 
 -- move to board.hs TODO

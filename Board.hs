@@ -96,3 +96,13 @@ isAnyCornerOfSquare b piece (i,j) = isLeftUpCornerOfSquare b piece (i,j) ||
                                     isLeftUpCornerOfSquare b piece (i-1,j) ||
                                     isLeftUpCornerOfSquare b piece (i,j-1) ||
                                     isLeftUpCornerOfSquare b piece (i-1,j-1)
+
+
+type FlattenedBoard = [(BoardField, Int, Int)]
+
+addCoordsToRow :: BoardRow -> Int -> FlattenedBoard
+addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
+    where rowL = length row
+
+flattenWithCoords :: Board -> FlattenedBoard
+flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
