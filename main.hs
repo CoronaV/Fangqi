@@ -2,20 +2,9 @@ import Data.Maybe (isNothing, fromMaybe)
 import Debug.Trace (trace)
 import Board
     ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare )
-import Player ()
-import Moves (Move(..),checkLegalAndResolve, changeTurn, Player (..), RandomAI (..), getSpaceOfType, getSpaceTypeNumber)
+import Player (Player (..), RandomAI (..))
+import Moves (Move(..),checkLegalAndResolve, changeTurn, getSpaceOfType, getSpaceTypeNumber)
 import GHC.Utils.Misc (count)
-
-
-
-
--- functions related to making moves
--- there are 2 types of moves: placing a stone and moving a stone to a neighboring intersection (=field,square)
-
--- a placing move is legal if the intersection was empty before the move
-
-
-
 
 
 
@@ -40,10 +29,6 @@ playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameSta
 playGame p1 p2 endCondition current
     | endCondition current = current
     | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
-
-
-
-
 
 
 

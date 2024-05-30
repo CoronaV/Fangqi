@@ -1,8 +1,14 @@
 module Moves where
 import Board
-    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare )
+    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols )
 import Data.Maybe (isNothing, fromMaybe)
 import GHC.Utils.Misc (count)
+
+
+-- functions related to making moves
+-- there are 3 types of moves: placing a stone, capturing a stone, and moving a stone to a neighboring intersection (=field,square)
+
+-- a placing move is legal if the intersection was empty before the move
 
 type MoveLegality = Bool
 
@@ -77,39 +83,17 @@ getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoor
         isFieldType ft (ft2, _, _) = ft == ft2
 
 
--- "player" is an interface with a method for choosing moves
-class Player p where
-    makeMove :: p -> GameState -> Move
-
-data RandomAI = RandomAI
-
-
-instance Player RandomAI where
-    makeMove :: RandomAI -> GameState -> Move
-    -- if there is no legal move, we messed up, so the AI will just make whatever move and cause an exception down the line
-    -- play on the first free field from top left, if there is any
-    makeMove RandomAI (GameState b piece PhaseDrop) = Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
-    makeMove RandomAI (GameState b piece PhaseRemove) = Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
-    makeMove RandomAI (GameState b piece PhaseShift) = Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
-
 
 -- keep the gamestate the same if illegal to reprompt the move if the player is human? write a message to output? TODO
 -- for now skip checking if the move is in the correct phase or the correct player is playing
 -- phase changes will be checked in main.hs
-checkLegalAndResolve :: GameState -> Move -> GameState
+-- needs IO Move because players return that
+checkLegalAndResolve :: GameState -> IO Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
     | canPlayMoveHere b move = GameState (changeBoard b move) (changeTurn piece) phase
     | otherwise = GameState b piece phase
 
 
--- if a 2x2 square is not formed this function will leave the GameState as it is
--- needs a player to choose a piece to capture
--- the Move is the move that causes the capture, not the capturing move!
--- the GameState is the state after the move??
-checkExecuteCapture :: (Player p) => p -> GameState -> Move -> GameState
-checkExecuteCapture p gs move
-    | checkCapture gs move = gs --TODO! change the gamestate with executeCapture
-    | otherwise = gs
 
 
 --TODO
@@ -132,3 +116,5 @@ ww
 -}
 
 -- Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
+coordInBounds :: Board -> (Int,Int) -> Bool
+coordInBounds b (i,j) = i >= 0 && j >= 0 && i < boardRows b && j < boardCols b

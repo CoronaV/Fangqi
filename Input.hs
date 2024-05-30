@@ -1,5 +1,6 @@
-import Moves (Player(..), Move (..))
-import Board (Piece(..), Phase (..), Board, boardCols, boardRows)
+module Input where
+import Moves (Move (..))
+import Board (Piece(..), Phase (..))
 import Data.Maybe (fromMaybe)
 import GHC.IO (evaluate)
 import Data.Char (ord, digitToInt, isAlpha, isDigit)
@@ -10,11 +11,8 @@ import GHC.Data.Maybe (isNothing)
 
 --make a human Player entity
 
-
 move1 :: Move
 move1 = Drop White (0,0)
-
-
 
 
 -- needs the current game state info to construct a full move
@@ -39,8 +37,7 @@ strToCoords [a, b]
     | otherwise = Nothing
 strToCoords _ = Nothing
 
-coordInBounds :: Board -> (Int,Int) -> Bool
-coordInBounds b (i,j) = i >= 0 && j >= 0 && i < boardRows b && j < boardCols b
+
 
 
 -- do: repeatedly ask for moves until the user submits a valid (if not legal) move
@@ -48,7 +45,9 @@ getMove :: IO Move
 getMove = do
     putStrLn "Make a move:"
     move <- fmap (\x -> strToMove x White PhaseDrop) getLine --fmap (fromMaybe move1 . (\x -> strToMove x White PhaseDrop)) getLine
-    fmap (\x -> fromMaybe x move) getMove
+    maybe getMove return move --while Nothing: repeat
+
+    --return move1
 
     -- if isNothing move
     --     then do
