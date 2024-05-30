@@ -87,16 +87,26 @@ getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoor
 -- keep the gamestate the same if illegal to reprompt the move if the player is human? write a message to output? TODO
 -- for now skip checking if the move is in the correct phase or the correct player is playing
 -- phase changes will be checked in main.hs
--- needs IO Move because players return that
-checkLegalAndResolve :: GameState -> IO Move -> GameState
+
+
+-- includes resolving the capture if necessary!
+checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
     | canPlayMoveHere b move = GameState (changeBoard b move) (changeTurn piece) phase
     | otherwise = GameState b piece phase
 
 
+-- the last move is a necessary argument to check which squares have been newly formed
+-- the gamestate argument will be the gamestate *after* the move happened to avoid simulating the move anyways
+-- only to discard the results and execute the move later
+-- resolveCapture :: GameState -> Move -> GameState
+-- resolveCapture gs move
+--     | checkCapture = 
+--     | otherwise = gs -- no captures, keep the same state
 
 
---TODO
+--TODO - problem: this will need the IO monad (makeMove). Solution: report back Bool capture has happened Y/N to the main loop
+-- which will choose the capturing move and send it here to be executed
 -- executeCapture ::  (Player p) => p -> GameState -> Move -> GameState
 -- executeCapture p gs move = _ --makeMove p gs -- should a 
 
