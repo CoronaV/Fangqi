@@ -62,3 +62,34 @@ checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
     | canPlayMoveHere b move = GameState (changeBoard b move) (changeTurn piece) phase
     | otherwise = GameState b piece phase
+
+
+-- if a 2x2 square is not formed this function will leave the GameState as it is
+-- needs a player to choose a piece to capture
+-- the Move is the move that causes the capture, not the capturing move!
+-- the GameState is the state after the move??
+checkExecuteCapture :: (Player p) => p -> GameState -> Move -> GameState
+checkExecuteCapture p gs move
+    | checkCapture gs move = _
+    | otherwise = gs
+
+
+executeCapture ::  (Player p) => p -> GameState -> Move -> GameState
+executeCapture p gs move = makeMove p gs -- should a 
+
+checkCapture :: GameState -> Move -> Bool
+checkCapture gs (Remove _ _) = False --removes never form squares
+checkCapture (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece
+checkCapture gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of forming squares, a piece arriving on a square is the same as a drop...*
+{- *except that a piece should not be able to form a square with its former position!
+w.
+ww
+->
+.w
+ww
+
+->False!
+
+-}
+
+-- Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)

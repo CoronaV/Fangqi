@@ -73,3 +73,26 @@ data Phase = PhaseDrop | PhaseRemove | PhaseShift
 -- board, whose move it is + what is the current phase?
 data GameState = GameState Board Piece Phase
     deriving Show
+
+
+spaceHasType :: Board -> (Int, Int) -> BoardField -> Bool
+spaceHasType b (i,j) fieldType = b!!i!!j == fieldType
+
+-- necessary for checking 2x2 square formations for captures:
+isLeftUpCornerOfSquare :: Board -> Piece -> (Int, Int) -> Bool
+-- if the intersection is on the bottom or right of the board -> never is upper left corner of 2x2 square
+isLeftUpCornerOfSquare b piece (i,j) = boardRows b > i && boardCols b > j && checkSquareStones b piece (i,j)
+    where
+        checkSquareStones b piece (i,j) = spaceHasType b (i,j) (BoardField $ Just piece) &&
+                                          spaceHasType b (i+1,j) (BoardField $ Just piece) &&
+                                          spaceHasType b (i,j+1) (BoardField $ Just piece) &&
+                                          spaceHasType b (i+1,j+1) (BoardField $ Just piece)
+
+
+-- for checking if a dropped piece forms a square
+-- if multiple squares are formed at once, let's implement the variant that removes just one piece?
+isAnyCornerOfSquare :: Board -> Piece -> (Int, Int) -> Bool
+isAnyCornerOfSquare b piece (i,j) = isLeftUpCornerOfSquare b piece (i,j) ||
+                                    isLeftUpCornerOfSquare b piece (i-1,j) ||
+                                    isLeftUpCornerOfSquare b piece (i,j-1) ||
+                                    isLeftUpCornerOfSquare b piece (i-1,j-1)

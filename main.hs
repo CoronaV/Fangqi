@@ -1,7 +1,7 @@
 import Data.Maybe (isNothing, fromMaybe)
 import Debug.Trace (trace)
 import Board
-    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..) )
+    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare )
 import Player ()
 import Moves (Move(..),checkLegalAndResolve, changeTurn)
 import GHC.Utils.Misc (count)
@@ -85,6 +85,10 @@ getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoor
         isFieldType ft (ft2, _, _) = ft == ft2
 
 
+-- move to board.hs TODO
+-- deal with edges of the board
+-- getNeighborCoords :: Board -> (Int, Int) -> [(Int, Int)]
+-- getNeighborCoords b (i,j)= [(i,j),_]
 
 
 --get user input ->MoveType
@@ -124,3 +128,9 @@ shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just W
 
 sampleGameShiftPhase :: GameState
 sampleGameShiftPhase = playGame RandomAI RandomAI shiftPhaseEndCheck (nextPhase sampleGameRemovePhase) --TODO
+
+
+--TODO: add captures to the drop phase
+-- some Fangqi variations have the players count the squares and remove pieces all at once at the end of the drop phase,
+-- but it might be easier to just remove a piece immediately as in the shift phase?
+
