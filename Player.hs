@@ -25,7 +25,7 @@ instance Player RandomAI where
     chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
     chooseMove RandomAI (GameState b piece PhaseShift) = return $ Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
     chooseCapture :: RandomAI -> GameState -> IO Move
-    chooseCapture RandomAI (GameState b piece _) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
+    chooseCapture RandomAI (GameState b piece _) = chooseMove RandomAI (GameState b piece PhaseRemove)
 
 data Human = Human --merge with RandomAI into one type with two constructors?
 
@@ -40,24 +40,31 @@ instance Player Human where
     chooseMove Human (GameState b piece PhaseDrop) = do
         -- "while move is illegal: get move"
         move <- fmap (Drop piece) getMove
-        if (isLegal (GameState b piece PhaseDrop) move)
+        if isLegal (GameState b piece PhaseDrop) move
             then do
                 return move
-                -- maybe (chooseMove Human (GameState b piece PhaseDrop)) return move
-                -- putStrLn "Make a move:"
-                -- move <- fmap strToCoords getLine -- fmap (\x -> strToMove x White PhaseDrop) getLine --fmap (fromMaybe move1 . (\x -> strToMove x White PhaseDrop)) getLine
-                -- maybe getMove return move
-                --fmap (Drop piece) getMove
             else do
                 chooseMove Human (GameState b piece PhaseDrop)
 
-
-    chooseMove Human (GameState b piece PhaseRemove) = fmap (Remove piece) getMove
+    chooseMove Human (GameState b piece PhaseRemove) = do
+        -- "while move is illegal: get move"
+        move <- fmap (Remove piece) getMove
+        if isLegal (GameState b piece PhaseRemove) move
+            then do
+                return move
+            else do
+                chooseMove Human (GameState b piece PhaseRemove)
     --need to implement a different prompt for getting the shift move coords...
-    chooseMove Human (GameState b piece PhaseShift) = liftA2 (Shift piece) getMove getMove
+    chooseMove Human (GameState b piece PhaseShift) = do
+        -- "while move is illegal: get move"
+        move <- liftA2 (Shift piece) getMove getMove
+        if isLegal (GameState b piece PhaseShift) move
+            then do
+                return move
+            else do
+                chooseMove Human (GameState b piece PhaseShift)
     chooseCapture :: Human -> GameState -> IO Move
-    chooseCapture Human (GameState b piece PhaseDrop) = fmap (Remove piece) getMove
-
+    chooseCapture Human (GameState b piece _) = chooseMove Human (GameState b piece PhaseRemove)
 
 
 -- put this inside Player/chooseMove instead?

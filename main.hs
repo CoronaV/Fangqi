@@ -45,6 +45,7 @@ playGame p1 p2 endCondition current = do
                 -- importantly the color to play remains the same
                 -- until after the potential capture is resolved
                 putStrLn "A capture is possible!"
+                -- display the board again...
                 captureMove <- chooseCapture p1 newState
                 afterCapture <- return $ checkLegalAndResolve newState captureMove
                 --print the new board

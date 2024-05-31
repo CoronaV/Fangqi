@@ -17,7 +17,6 @@ type MoveLegality = Bool
 data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
     deriving Show
 
-
 replaceByIndex :: [a] -> Int -> a -> [a]
 replaceByIndex [] _ _ = []
 replaceByIndex (x:xs) 0 a = a:xs
