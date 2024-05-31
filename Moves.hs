@@ -10,8 +10,6 @@ import GHC.Utils.Misc (count)
 
 -- a placing move is legal if the intersection was empty before the move
 
-type MoveLegality = Bool
-
 -- for a Shift move two coords are needed, start and destination
 -- for all types Piece is the color of the player making the move (not the color of the removed piece!)
 data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
@@ -29,11 +27,6 @@ changeSpace b (i,j) piece = replaceByIndex b i newRow
         dropInRow :: BoardRow -> Int -> Maybe Piece -> BoardRow
         dropInRow row colNum piece = replaceByIndex row colNum (BoardField piece)
 
--- maybePlayDrop :: Board -> Maybe (Int, Int) -> Maybe Piece -> Board
--- maybePlayDrop b coords piece = maybe b (\c->changeSpace b c piece) coords
-
-
-
 removeHereIsLegal :: BoardField -> Piece -> Bool
 removeHereIsLegal (BoardField (Just White)) Black = True
 removeHereIsLegal (BoardField (Just Black)) White = True
@@ -45,13 +38,9 @@ canPlayMoveHere b ( Drop p (i,j) ) = dropHereIsLegal $ b!!i!!j
 canPlayMoveHere b ( Remove p (i,j) ) = removeHereIsLegal (b!!i!!j) p
 canPlayMoveHere b ( Shift p (i,j) (i2,j2) ) = False --TODO
 
-
-
 dropHereIsLegal :: BoardField -> Bool
 dropHereIsLegal (BoardField Nothing) = True
 dropHereIsLegal _ = False
-
-
 
 changeBoard :: Board -> Move -> Board
 changeBoard b (Drop piece (i,j)) = changeSpace b (i,j) (Just piece)
@@ -76,11 +65,7 @@ getSpaceOfType b = getSpaceOfType' $ flattenWithCoords b
 
 -- counts the number of spaces of a type on the board
 getSpaceTypeNumber :: Board -> BoardField -> Int
-getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoords b
-    where
-        isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
-        isFieldType ft (ft2, _, _) = ft == ft2
-
+getSpaceTypeNumber b fieldType = count (fieldType ==) (concat b)
 
 
 -- keep the gamestate the same if illegal to reprompt the move if the player is human? write a message to output? TODO
@@ -135,6 +120,28 @@ ww
 
 -}
 
--- Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
-coordInBounds :: Board -> (Int,Int) -> Bool
-coordInBounds b (i,j) = i >= 0 && j >= 0 && i < boardRows b && j < boardCols b
+
+--TODO: merge this (BoardField, Int, Int) -> GameState -> Move with functions handling 
+-- player input?
+coordsToMove :: GameState -> (BoardField, Int, Int) -> Move
+coordsToMove (GameState b piece PhaseDrop)  (lol, i, j) = Drop piece (i,j)
+
+
+getPossibleMoves :: GameState -> [Move]
+getPossibleMoves (GameState b piece PhaseDrop) = map (coordsToMove (GameState b piece PhaseDrop)) (filter isEmpty (flattenWithCoords b))
+    where
+        isEmpty :: (BoardField, Int, Int) -> Bool
+        isEmpty (bf, _, _) = bf == BoardField Nothing
+
+    
+    -- map (coordsToMove (GameState b piece PhaseDrop)) (filter (isFieldType (BoardField $ Just piece)) (flattenWithCoords b))
+    -- where
+    --     isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
+    --     isFieldType ft (ft2, _, _) = ft == ft2
+        
+
+-- getSpaceTypeNumber :: Board -> BoardField -> Int
+-- getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoords b
+--     where
+--         isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
+--         isFieldType ft (ft2, _, _) = ft == ft2

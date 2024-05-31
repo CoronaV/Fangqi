@@ -1,9 +1,10 @@
 module Player where
-import Board (GameState (..), Phase (..), BoardField (..))
-import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal)
-import Input (getMove)
+import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
+import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber)
+import Input (getMove, getMoveFRFRNoCap)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
+import GHC.Float (int2Float)
 
 -- "player" is an interface with a method for choosing moves
 -- it returns IO Move - i.e. there is no guarantee that the same player will choose the same move twice
@@ -14,7 +15,6 @@ class Player p where
 
 
 data RandomAI = RandomAI
-
 
 instance Player RandomAI where
     chooseMove :: RandomAI -> GameState -> IO Move
@@ -37,32 +37,15 @@ instance Player Human where
     chooseMove :: Human -> GameState -> IO Move
     -- the input system is context-aware, the human will just type in coords and the remaining
     -- info about the move will be filled in by the system
-    chooseMove Human (GameState b piece PhaseDrop) = do
+    chooseMove Human gs = do
         -- "while move is illegal: get move"
-        move <- fmap (Drop piece) getMove
-        if isLegal (GameState b piece PhaseDrop) move
+        move <- getMoveFRFRNoCap gs
+        if isLegal gs move
             then do
                 return move
             else do
-                chooseMove Human (GameState b piece PhaseDrop)
+                chooseMove Human gs
 
-    chooseMove Human (GameState b piece PhaseRemove) = do
-        -- "while move is illegal: get move"
-        move <- fmap (Remove piece) getMove
-        if isLegal (GameState b piece PhaseRemove) move
-            then do
-                return move
-            else do
-                chooseMove Human (GameState b piece PhaseRemove)
-    --need to implement a different prompt for getting the shift move coords...
-    chooseMove Human (GameState b piece PhaseShift) = do
-        -- "while move is illegal: get move"
-        move <- liftA2 (Shift piece) getMove getMove
-        if isLegal (GameState b piece PhaseShift) move
-            then do
-                return move
-            else do
-                chooseMove Human (GameState b piece PhaseShift)
     chooseCapture :: Human -> GameState -> IO Move
     chooseCapture Human (GameState b piece _) = chooseMove Human (GameState b piece PhaseRemove)
 
@@ -77,3 +60,47 @@ checkExecuteCapture :: (Player p) => p -> GameState -> Move -> GameState
 checkExecuteCapture p gs move
     | checkCapture gs move = gs --TODO! change the gamestate with executeCapture
     | otherwise = gs
+
+
+
+
+-- the heuristic will say how good a position is for White
+-- or for a specified player?
+-- TODO: or should it automatically take the player on the move from the GameState? Or the player who just made the move?
+-- or maybe for white and black will try to minimize it?
+
+-- goodness = # own stones / # enemy stones
+-- not a subtraction because having 1 stone advantage is more important if there are fewer stones
+-- ...at least in the "shift phase" 
+
+
+heuristic :: GameState -> Float
+heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFloat b Black
+    where
+        getPlayerStonesFloat :: Board -> Piece -> Float
+        getPlayerStonesFloat b playerColor = int2Float $ getSpaceTypeNumber b (BoardField $ Just playerColor)
+
+
+-- chooseStateFromChildren :: [(GameState, Float)] -> Piece -> (GameState, Float)
+-- chooseStateFromChildren 
+
+
+
+-- int argument: depth of evaluation
+-- minimaxGetBestMove :: GameState -> Int -> Piece -> Move
+-- minimaxGetBestMove depth playerColor = do
+--     -- get available moves
+
+
+--     return ()
+
+
+data HeuristicAI = HeuristicAI
+
+-- instance Player HeuristicAI where
+--     chooseMove :: HeuristicAI -> GameState -> IO Move
+--     chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
+--     chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
+--     chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
+--     chooseCapture :: HeuristicAI -> GameState -> IO Move
+--     chooseCapture HeuristicAI (GameState b piece _) = _

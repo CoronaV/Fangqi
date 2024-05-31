@@ -1,19 +1,12 @@
 module Board where
 
 {- 
-
 Xinjiang Fāngqí is played on a 7×7 board.
 -}
 
-
 data Piece = Black | White
     deriving (Eq, Show)
--- instance Show Piece where
---     show :: Piece -> String
---     show Black = "b"
---     show White = "w"
 
--- "type" instead?
 data BoardField = BoardField (Maybe Piece)
     deriving Eq
 instance Show BoardField where
@@ -39,7 +32,6 @@ printBoardRow br = unwords (map show br)
 interleave :: [a] -> [a] -> [a]
 interleave xs ys = concat (zipWith (\x y -> [x,y]) xs ys)
 
-
 letters :: Int -> [Char]
 letters n = take n ['a'..]
 
@@ -59,8 +51,6 @@ displayBoard b = do
         putStrLn $ printBoard b ++ printBoardBottomEdge b
 
 
-
-
 emptyField :: BoardField
 emptyField = BoardField Nothing
 
@@ -71,11 +61,10 @@ emptyBoard :: Int -> Int -> Board
 emptyBoard rows cols = replicate rows (emptyRow cols)
 
 data Phase = PhaseDrop | PhaseRemove | PhaseShift
-    deriving Show
+    deriving (Show, Eq)
 -- board, whose move it is + what is the current phase?
 data GameState = GameState Board Piece Phase
     deriving Show
-
 
 displayGameState :: GameState -> IO()
 displayGameState (GameState b piece phase) = do
@@ -88,7 +77,7 @@ spaceHasType b (i,j) fieldType = b!!i!!j == fieldType
 
 
 isInBounds :: Board -> (Int, Int) -> Bool
-isInBounds b (i,j) = i >= 0 && j>=0 && boardRows b > i && boardCols b > j
+isInBounds b (i,j) = i >= 0 && j >= 0 && boardRows b > i && boardCols b > j
 
 -- a function that reports back "empty spaces" beyond the edge of board, to avoid exceptions
 -- and unwieldy conditionals
@@ -106,12 +95,6 @@ isLeftUpCornerOfSquare b piece (i,j) = checkSquareStones b piece (i,j)
                                           spaceHasTypeEmptyExtend b (i+1,j) (BoardField $ Just piece) &&
                                           spaceHasTypeEmptyExtend b (i,j+1) (BoardField $ Just piece) &&
                                           spaceHasTypeEmptyExtend b (i+1,j+1) (BoardField $ Just piece)
-    -- boardRows b > i && boardCols b > j && checkSquareStones b piece (i,j)
-    -- where
-    --     checkSquareStones b piece (i,j) = spaceHasType b (i,j) (BoardField $ Just piece) &&
-    --                                       spaceHasType b (i+1,j) (BoardField $ Just piece) &&
-    --                                       spaceHasType b (i,j+1) (BoardField $ Just piece) &&
-    --                                       spaceHasType b (i+1,j+1) (BoardField $ Just piece)
 
 
 -- for checking if a dropped piece forms a square

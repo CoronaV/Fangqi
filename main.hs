@@ -8,17 +8,6 @@ import GHC.Utils.Misc (count)
 import Control.Applicative (liftA2)
 
 
---arguments: initial position -> first player to move -> final position
--- dropPhase :: Board -> Piece -> Board
--- dropPhase b playerTurn
---     | not $ dropPhaseEndCheck b = dropPhase (playArbitraryDrop b (Just playerTurn)) (changeTurn playerTurn)
---     | otherwise = b --return the board at the end of the drop phase
-
-
--- -- 2nd phase: each player removes one of their opponent's stones
--- removePhase :: Board -> Piece -> Board
--- removePhase b playerTurn = playArbitraryRemove bAfterFirstRemove (changeTurn playerTurn) playArbitraryRemove
---     where bAfterFirstRemove = playArbitraryRemove b playerTurn playArbitraryRemove
 
 
 switchTurn :: GameState -> GameState
@@ -91,6 +80,8 @@ nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
 nextPhase (GameState b piece PhaseRemove) = GameState b piece PhaseShift
 nextPhase (GameState b piece PhaseShift) = GameState b piece PhaseShift --TODO
 
+
+-- 2nd phase: each player removes one of their opponent's stones
 -- players remove one stone each -> there should be two empty spaces
 removePhaseEndCheck :: GameState -> Bool
 removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing) >= 2
