@@ -1,6 +1,6 @@
 module Moves where
 import Board
-    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols )
+    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard )
 import Data.Maybe (isNothing, fromMaybe)
 import GHC.Utils.Misc (count)
 
@@ -59,9 +59,9 @@ changeBoard b (Drop piece (i,j)) = changeSpace b (i,j) (Just piece)
 changeBoard b (Remove piece (i,j)) = changeSpace b (i,j) Nothing
 changeBoard b (Shift piece (i,j) (i2,j2)) = b -- TODO
 
-changeTurn :: Piece -> Piece
-changeTurn White = Black
-changeTurn Black = White
+switchColor :: Piece -> Piece
+switchColor White = Black
+switchColor Black = White
 
 
 --retire this in favor of isLegalMove and isLegalAnywhereMove?
@@ -89,10 +89,24 @@ getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoor
 -- phase changes will be checked in main.hs
 
 
--- includes resolving the capture if necessary!
+moveInBounds :: Board -> Move -> Bool
+moveInBounds b (Drop piece (i,j)) = isInBounds b (i,j)
+moveInBounds b (Remove piece (i,j)) = isInBounds b (i,j)
+moveInBounds b (Shift piece (i,j) (i2,j2)) = isInBounds b (i,j) && isInBounds b (i2,j2)
+
+
+-- no need to check if the move is of the correct type, the game will just not allow wrong move types
+-- should we check just in case if the gamestate color to play corresponds to the move color?
+isLegal :: GameState -> Move -> Bool
+isLegal (GameState b piece _) move = moveInBounds b move && canPlayMoveHere b move
+
+-- check if move is in bounds and is played on a valid target field
+-- will not change turn because it's necessary to capture with the same color if a capture is possible before changing turn
+-- and the capture can't be included here to keep the IO monad out of this module
+-- TODO: check in a 'shift' move if the coords are in a row or column and spaces between them are free 
 checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
-    | canPlayMoveHere b move = GameState (changeBoard b move) (changeTurn piece) phase
+    | isLegal (GameState b piece phase) move = GameState (changeBoard b move) piece phase
     | otherwise = GameState b piece phase
 
 
@@ -105,11 +119,8 @@ checkLegalAndResolve (GameState b piece phase) move
 --     | otherwise = gs -- no captures, keep the same state
 
 
---TODO - problem: this will need the IO monad (makeMove). Solution: report back Bool capture has happened Y/N to the main loop
+--  reports back Bool capture has happened Y/N to the main loop
 -- which will choose the capturing move and send it here to be executed
--- executeCapture ::  (Player p) => p -> GameState -> Move -> GameState
--- executeCapture p gs move = _ --makeMove p gs -- should a 
-
 checkCapture :: GameState -> Move -> Bool
 checkCapture gs (Remove _ _) = False --removes never form squares
 checkCapture (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece

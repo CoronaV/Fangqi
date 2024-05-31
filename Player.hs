@@ -1,6 +1,6 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..))
-import Moves (Move (..), getSpaceOfType, changeTurn, checkCapture)
+import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal)
 import Input (getMove)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
@@ -22,18 +22,36 @@ instance Player RandomAI where
     -- and cause an exception down the line
     -- play on the first free field from top left, if there is any
     chooseMove RandomAI (GameState b piece PhaseDrop) = return $ Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
-    chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
+    chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
     chooseMove RandomAI (GameState b piece PhaseShift) = return $ Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
     chooseCapture :: RandomAI -> GameState -> IO Move
-    chooseCapture RandomAI (GameState b piece _) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ changeTurn piece)) )
+    chooseCapture RandomAI (GameState b piece _) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
 
-data Human = Human --merge into one type with RandomAI?
+data Human = Human --merge with RandomAI into one type with two constructors?
+
+--TODO: need to check human moves (incl. captures) for legality..
+
+-- get the GameState in Input.hs to test it or do it in Player.hs?
 
 instance Player Human where
     chooseMove :: Human -> GameState -> IO Move
     -- the input system is context-aware, the human will just type in coords and the remaining
     -- info about the move will be filled in by the system
-    chooseMove Human (GameState b piece PhaseDrop) = fmap (Drop piece) getMove
+    chooseMove Human (GameState b piece PhaseDrop) = do
+        -- "while move is illegal: get move"
+        move <- fmap (Drop piece) getMove
+        if (isLegal (GameState b piece PhaseDrop) move)
+            then do
+                return move
+                -- maybe (chooseMove Human (GameState b piece PhaseDrop)) return move
+                -- putStrLn "Make a move:"
+                -- move <- fmap strToCoords getLine -- fmap (\x -> strToMove x White PhaseDrop) getLine --fmap (fromMaybe move1 . (\x -> strToMove x White PhaseDrop)) getLine
+                -- maybe getMove return move
+                --fmap (Drop piece) getMove
+            else do
+                chooseMove Human (GameState b piece PhaseDrop)
+
+
     chooseMove Human (GameState b piece PhaseRemove) = fmap (Remove piece) getMove
     --need to implement a different prompt for getting the shift move coords...
     chooseMove Human (GameState b piece PhaseShift) = liftA2 (Shift piece) getMove getMove

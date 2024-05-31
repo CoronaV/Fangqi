@@ -86,11 +86,15 @@ displayGameState (GameState b piece phase) = do
 spaceHasType :: Board -> (Int, Int) -> BoardField -> Bool
 spaceHasType b (i,j) fieldType = b!!i!!j == fieldType
 
+
+isInBounds :: Board -> (Int, Int) -> Bool
+isInBounds b (i,j) = i >= 0 && j>=0 && boardRows b > i && boardCols b > j
+
 -- a function that reports back "empty spaces" beyond the edge of board, to avoid exceptions
 -- and unwieldy conditionals
 spaceHasTypeEmptyExtend ::  Board -> (Int, Int) -> BoardField -> Bool
 spaceHasTypeEmptyExtend b (i,j) fieldType
-    | i >= 0 && j>=0 && boardRows b > i && boardCols b > j = spaceHasType b (i,j) fieldType
+    | isInBounds b (i,j) = spaceHasType b (i,j) fieldType
     | otherwise = fieldType == BoardField Nothing
 
 -- necessary for checking 2x2 square formations for captures:
@@ -129,3 +133,5 @@ addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
 
 flattenWithCoords :: Board -> FlattenedBoard
 flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
+
+

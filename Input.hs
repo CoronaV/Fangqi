@@ -38,8 +38,6 @@ strToCoords [a, b]
 strToCoords _ = Nothing
 
 
-
-
 -- do: repeatedly ask for moves until the user submits a valid (if not legal) move
 
 --TODO:Fix this!! to return a move type and piece correctly
@@ -61,3 +59,4 @@ getMove = do
     --     return move
 
 -- test: fmap show getMove
+
