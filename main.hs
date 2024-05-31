@@ -1,8 +1,8 @@
 import Data.Maybe (isNothing, fromMaybe)
 import Debug.Trace (trace)
 import Board
-    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare )
-import Player (Player (..), RandomAI (..))
+    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare, displayGameState )
+import Player (Player (..), RandomAI (..), Human (..))
 import Moves (Move(..),checkLegalAndResolve, changeTurn, getSpaceOfType, getSpaceTypeNumber, checkCapture)
 import GHC.Utils.Misc (count)
 import Control.Applicative (liftA2)
@@ -26,22 +26,30 @@ import Control.Applicative (liftA2)
 -- move function of player1 -> move function of player2 -> end eval function -> initial state -> final state
 
 -- TODO: use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
-playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> IO GameState -> IO GameState
+playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> IO GameState
 playGame p1 p2 endCondition current = do
-    ended <- fmap endCondition current
+    let ended = endCondition current
     if ended
-        then current
+        then return current
     else do
-        chosenMove <- fmap (makeMove p1) current
-        --adf <- checkLegalAndResolve current chosenMove
-        newState <- liftA2 checkLegalAndResolve current chosenMove
-        mayCapture <- fmap (checkCapture newState) chosenMove
-        if mayCapture makeMove p1
+        chosenMove <- chooseMove p1 current
+        let newState = checkLegalAndResolve current chosenMove
+        let mayCapture = checkCapture newState chosenMove
+        -- chosenMove <- fmap (chooseMove p1) current
+        -- newState <- liftA2 checkLegalAndResolve current chosenMove
+        -- mayCapture <- fmap (checkCapture newState) chosenMove
+        if mayCapture
             then do
-                newState <- makeCapture p1
-                playGame p1 p2 endCondition (return newState)
+                putStrLn "A capture is possible!"
+                captureMove <- chooseCapture p1 newState
+                afterCapture <- return $ checkLegalAndResolve newState captureMove
+                --print the new board
+                displayGameState afterCapture
+                playGame p1 p2 endCondition afterCapture
             else do
-                playGame p1 p2 endCondition (return newState)
+                --print the new board
+                displayGameState newState
+                playGame p1 p2 endCondition (newState)
         --current
         --playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
     -- | endCondition current = current
@@ -69,7 +77,7 @@ dropPhaseEndCheck :: GameState -> Bool
 dropPhaseEndCheck (GameState b _ _) = isNothing $ getSpaceOfType b (BoardField Nothing)
 
 sampleGameDropPhase :: IO GameState
-sampleGameDropPhase = playGame RandomAI RandomAI dropPhaseEndCheck (return startState)
+sampleGameDropPhase = playGame RandomAI RandomAI dropPhaseEndCheck (startState)
 
 nextPhase :: GameState -> GameState
 nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
@@ -82,7 +90,9 @@ removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing
 
 
 sampleGameRemovePhase :: IO GameState
-sampleGameRemovePhase = playGame RandomAI RandomAI removePhaseEndCheck (fmap nextPhase sampleGameDropPhase)
+sampleGameRemovePhase = do
+    start <- sampleGameDropPhase
+    playGame RandomAI RandomAI removePhaseEndCheck (nextPhase start)
 
 -- make phase a class with this as method? or merge the endCheck methods into one since GameState contains Phase info?
 -- the game ends if there are no white or no black stones
@@ -98,3 +108,5 @@ shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just W
 -- some Fangqi variations have the players count the squares and remove pieces all at once at the end of the drop phase,
 -- but it might be easier to just remove a piece immediately as in the shift phase?
 
+humanGameDropPhase :: IO GameState
+humanGameDropPhase = playGame Human Human dropPhaseEndCheck (startState)

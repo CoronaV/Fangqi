@@ -59,6 +59,8 @@ displayBoard b = do
         putStrLn $ printBoard b ++ printBoardBottomEdge b
 
 
+
+
 emptyField :: BoardField
 emptyField = BoardField Nothing
 
@@ -75,22 +77,43 @@ data GameState = GameState Board Piece Phase
     deriving Show
 
 
+displayGameState :: GameState -> IO()
+displayGameState (GameState b piece phase) = do
+        displayBoard b
+        putStrLn $ "It is now "++ show piece ++ "'s turn in the phase "++ show phase
+
+
 spaceHasType :: Board -> (Int, Int) -> BoardField -> Bool
 spaceHasType b (i,j) fieldType = b!!i!!j == fieldType
+
+-- a function that reports back "empty spaces" beyond the edge of board, to avoid exceptions
+-- and unwieldy conditionals
+spaceHasTypeEmptyExtend ::  Board -> (Int, Int) -> BoardField -> Bool
+spaceHasTypeEmptyExtend b (i,j) fieldType
+    | i >= 0 && j>=0 && boardRows b > i && boardCols b > j = spaceHasType b (i,j) fieldType
+    | otherwise = fieldType == BoardField Nothing
 
 -- necessary for checking 2x2 square formations for captures:
 isLeftUpCornerOfSquare :: Board -> Piece -> (Int, Int) -> Bool
 -- if the intersection is on the bottom or right of the board -> never is upper left corner of 2x2 square
-isLeftUpCornerOfSquare b piece (i,j) = boardRows b > i && boardCols b > j && checkSquareStones b piece (i,j)
+isLeftUpCornerOfSquare b piece (i,j) = checkSquareStones b piece (i,j)
     where
-        checkSquareStones b piece (i,j) = spaceHasType b (i,j) (BoardField $ Just piece) &&
-                                          spaceHasType b (i+1,j) (BoardField $ Just piece) &&
-                                          spaceHasType b (i,j+1) (BoardField $ Just piece) &&
-                                          spaceHasType b (i+1,j+1) (BoardField $ Just piece)
+        checkSquareStones b piece (i,j) = spaceHasTypeEmptyExtend b (i,j) (BoardField $ Just piece) &&
+                                          spaceHasTypeEmptyExtend b (i+1,j) (BoardField $ Just piece) &&
+                                          spaceHasTypeEmptyExtend b (i,j+1) (BoardField $ Just piece) &&
+                                          spaceHasTypeEmptyExtend b (i+1,j+1) (BoardField $ Just piece)
+    -- boardRows b > i && boardCols b > j && checkSquareStones b piece (i,j)
+    -- where
+    --     checkSquareStones b piece (i,j) = spaceHasType b (i,j) (BoardField $ Just piece) &&
+    --                                       spaceHasType b (i+1,j) (BoardField $ Just piece) &&
+    --                                       spaceHasType b (i,j+1) (BoardField $ Just piece) &&
+    --                                       spaceHasType b (i+1,j+1) (BoardField $ Just piece)
 
 
 -- for checking if a dropped piece forms a square
--- if multiple squares are formed at once, let's implement the variant that removes just one piece?
+-- if multiple squares are formed at once, let's implement the variant that removes just one piece?(
+-- problem: if we receive e.g. (0,0), we should be checking only one square or we will get negative indices!
+-- solution: use a function that reports back "empty spaces" beyond the edge of board -> spaceHasTypeEmptyExtend
 isAnyCornerOfSquare :: Board -> Piece -> (Int, Int) -> Bool
 isAnyCornerOfSquare b piece (i,j) = isLeftUpCornerOfSquare b piece (i,j) ||
                                     isLeftUpCornerOfSquare b piece (i-1,j) ||

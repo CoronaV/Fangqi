@@ -3,6 +3,7 @@ import Board (GameState (..), Phase (..), BoardField (..))
 import Moves (Move (..), getSpaceOfType, changeTurn, checkCapture)
 import Input (getMove)
 import Data.Maybe (fromMaybe)
+import Control.Applicative (Applicative(liftA2))
 
 -- "player" is an interface with a method for choosing moves
 -- it returns IO Move - i.e. there is no guarantee that the same player will choose the same move twice
@@ -30,13 +31,15 @@ data Human = Human --merge into one type with RandomAI?
 
 instance Player Human where
     chooseMove :: Human -> GameState -> IO Move
-    -- if there is no legal move, we messed up, so the AI will just make whatever move and cause an exception down the line
-    -- play on the first free field from top left, if there is any
-    chooseMove Human (GameState b piece PhaseDrop) = getMove
+    -- the input system is context-aware, the human will just type in coords and the remaining
+    -- info about the move will be filled in by the system
+    chooseMove Human (GameState b piece PhaseDrop) = fmap (Drop piece) getMove
+    chooseMove Human (GameState b piece PhaseRemove) = fmap (Remove piece) getMove
+    --need to implement a different prompt for getting the shift move coords...
+    chooseMove Human (GameState b piece PhaseShift) = liftA2 (Shift piece) getMove getMove
     chooseCapture :: Human -> GameState -> IO Move
-    chooseCapture Human (GameState b piece PhaseDrop) = _
-    -- chooseMove Human (GameState b piece PhaseRemove) = _
-    -- chooseMove Human (GameState b piece PhaseShift) = _
+    chooseCapture Human (GameState b piece PhaseDrop) = fmap (Remove piece) getMove
+
 
 
 -- put this inside Player/chooseMove instead?
