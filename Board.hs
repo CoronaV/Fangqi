@@ -117,4 +117,9 @@ addCoordsToRow row rowNum = zip3 row (replicate rowL rowNum) [0..rowL]
 flattenWithCoords :: Board -> FlattenedBoard
 flattenWithCoords b = concat $ zipWith addCoordsToRow b [0..boardRows b]
 
+cartesianProduct :: [a] -> [b] -> [(a, b)]
+cartesianProduct xs ys = [(x,y) | x <- xs, y <- ys]
+
+getAllCoords :: Board -> [(Int, Int)]
+getAllCoords b = cartesianProduct [0..boardRows b-1] [0..boardCols b-1]
 

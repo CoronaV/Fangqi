@@ -1,10 +1,12 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
-import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber)
-import Input (getMove, getMoveFRFRNoCap)
+import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve)
+import Input (getMoveFRFRNoCap)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
+import Data.List ( partition )
+import GHC.Utils.Misc (partitionByList)
 
 -- "player" is an interface with a method for choosing moves
 -- it returns IO Move - i.e. there is no guarantee that the same player will choose the same move twice
@@ -14,6 +16,8 @@ class Player p where
     chooseCapture :: p -> GameState -> IO Move --rename this 
 
 
+-- refactor this to use getPossibleMoves?
+-- also put a check for getPossibleMoves returning 0 moves in the main loop -> end game
 data RandomAI = RandomAI
 
 instance Player RandomAI where
@@ -85,12 +89,26 @@ heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFlo
 -- chooseStateFromChildren 
 
 
+data StateAfterMove = StateAfterMove GameState Move
+
+captureHappened :: StateAfterMove -> Bool
+
+-- TODO: actually, shouldn't a Move contain the following capture if it occurs??
+-- that would make the minimax simpler
 
 -- int argument: depth of evaluation
--- minimaxGetBestMove :: GameState -> Int -> Piece -> Move
--- minimaxGetBestMove depth playerColor = do
---     -- get available moves
+minimaxGetBestMove :: GameState -> Int -> Piece -> Move
+minimaxGetBestMove gs depth playerColor = do
+    let moves = getPossibleMoves gs -- get available moves
+    let childStates = map (\m -> StateAfterMove (checkLegalAndResolve gs m) m) moves -- the legality check should be unnecessary, moves should contain only legal moves
+    let (childStatesCapture, childStatesNoCapture) = partitionByList (liftA2 checkCapture childStates) childStates
+    --let childStatesAfterCapture
 
+    -- TODO: problem: we need to simulate all possible captures as well
+    -- and some moves will induce captures while others won't
+    -- solution: replace child states that result in a capture with a set of child states after all possible captures
+    -- though this will increase the branching factor considerably...
+    moves!!0
 
 --     return ()
 

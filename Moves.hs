@@ -1,6 +1,6 @@
 module Moves where
 import Board
-    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard )
+    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard, emptyRow )
 import Data.Maybe (isNothing, fromMaybe)
 import GHC.Utils.Misc (count)
 
@@ -105,20 +105,12 @@ checkLegalAndResolve (GameState b piece phase) move
 
 --  reports back Bool capture has happened Y/N to the main loop
 -- which will choose the capturing move and send it here to be executed
+-- note: a piece should not be able to form a square with its former position!
+-- to this end, captures will be checked *after* the move is executed
 checkCapture :: GameState -> Move -> Bool
 checkCapture gs (Remove _ _) = False --removes never form squares
 checkCapture (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece
 checkCapture gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of forming squares, a piece arriving on a square is the same as a drop...*
-{- *except that a piece should not be able to form a square with its former position!
-w.
-ww
-->
-.w
-ww
-
-->False!
-
--}
 
 
 --TODO: merge this (BoardField, Int, Int) -> GameState -> Move with functions handling 
@@ -127,21 +119,56 @@ coordsToMove :: GameState -> (BoardField, Int, Int) -> Move
 coordsToMove (GameState b piece PhaseDrop)  (lol, i, j) = Drop piece (i,j)
 
 
+coordsFromToShiftMoveList :: GameState -> (Int, Int) -> [Move]
+coordsFromToShiftMoveList (GameState b piece PhaseShift) (fromI, fromJ) = map (Shift piece (fromI,fromJ)) destinations
+    where
+        destinations = pieceCanMoveTo b (fromI, fromJ)
+        --Shift piece fromI fromJ
+
+-- lists all spaces a piece can move to with a Shift move from a specified square
+-- take four vectors, takeWhile empty spaces in the direction of each
+-- this function does not check if there is a piece at the "from" square!
+pieceCanMoveTo :: Board -> (Int, Int) -> [(Int, Int)]
+pieceCanMoveTo b from = freeSpacesInDirection b from (0,1) ++
+                        freeSpacesInDirection b from (0,-1) ++
+                        freeSpacesInDirection b from (1,0) ++
+                        freeSpacesInDirection b from (-1,0)
+
+-- TODO: move to Board.hs
+-- only the four orthogonal unit directions are necessary, thankfully
+freeSpacesInDirection :: Board -> (Int, Int) -> (Int, Int) -> [(Int, Int)]
+freeSpacesInDirection b (fromI, fromJ) (vectI,vectJ)
+    --check if the neighboring space is free; otherwise no fields at all can be reached in this direction
+    -- also check if it is in bounds!
+    | isInBounds b (newI,newJ) && b!!newI!!newJ == BoardField Nothing = (newI, newJ) : freeSpacesInDirection b (newI, newJ) (vectI,vectJ)
+    | otherwise = []
+    where
+        newI = fromI+vectI
+        newJ = fromJ+vectJ
+
+oneStoneBoard :: Board
+oneStoneBoard = [emptyRow 3, [BoardField Nothing, BoardField (Just Black), BoardField Nothing], emptyRow 3]
+testPossMoves :: [Move]
+testPossMoves = getPossibleMoves (GameState oneStoneBoard Black PhaseShift)
+
 getPossibleMoves :: GameState -> [Move]
 getPossibleMoves (GameState b piece PhaseDrop) = map (coordsToMove (GameState b piece PhaseDrop)) (filter isEmpty (flattenWithCoords b))
     where
         isEmpty :: (BoardField, Int, Int) -> Bool
         isEmpty (bf, _, _) = bf == BoardField Nothing
+getPossibleMoves (GameState b piece PhaseRemove) = map (coordsToMove (GameState b piece PhaseRemove)) (filter isOpponent (flattenWithCoords b))
+    where
+        isOpponent :: (BoardField, Int, Int) -> Bool
+        isOpponent (bf, _, _) = bf == BoardField (Just $ switchColor piece)
 
-    
-    -- map (coordsToMove (GameState b piece PhaseDrop)) (filter (isFieldType (BoardField $ Just piece)) (flattenWithCoords b))
-    -- where
-    --     isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
-    --     isFieldType ft (ft2, _, _) = ft == ft2
-        
+-- legal shift move: 
+-- from coord is own stone
 
--- getSpaceTypeNumber :: Board -> BoardField -> Int
--- getSpaceTypeNumber b fieldType = count (isFieldType fieldType) $ flattenWithCoords b
---     where
---         isFieldType :: BoardField -> (BoardField, Int, Int) -> Bool
---         isFieldType ft (ft2, _, _) = ft == ft2
+getPossibleMoves (GameState b piece PhaseShift) = concatMap (coordsFromToShiftMoveList (GameState b piece PhaseShift)) fromSquares
+    where
+        fromSquares = map toCoords $ filter isOwn (flattenWithCoords b)
+        isOwn :: (BoardField, Int, Int) -> Bool
+        isOwn (bf, _, _) = bf == BoardField (Just piece)
+        toCoords :: (BoardField, Int, Int) -> (Int, Int)
+        toCoords (_, i, j) = (i,j)
+

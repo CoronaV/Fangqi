@@ -35,11 +35,11 @@ strToCoords _ = Nothing
 -- TODO:Fix this!! to return a move type and piece correctly or rename to getCoords?
 -- the input system is context-aware, the human will just type in coords and the remaining
 -- info about the move will be filled in by the system
-getMove :: IO (Int, Int)
-getMove = do
-    putStrLn "Make a move:"
-    move <- fmap strToCoords getLine -- fmap (\x -> strToMove x White PhaseDrop) getLine --fmap (fromMaybe move1 . (\x -> strToMove x White PhaseDrop)) getLine
-    maybe getMove return move --while Nothing: repeat
+-- getMove :: IO (Int, Int)
+-- getMove = do
+--     putStrLn "Make a move:"
+--     move <- fmap strToCoords getLine -- fmap (\x -> strToMove x White PhaseDrop) getLine --fmap (fromMaybe move1 . (\x -> strToMove x White PhaseDrop)) getLine
+--     maybe getMove return move --while Nothing: repeat
     -- if isNothing move
     --     then do
     --         putStrLn "Incorrect input, please type the move in this format: 'c5' or 'a2'. "
@@ -53,8 +53,8 @@ getMove = do
 --while Nothing: repeat
 getMoveFRFRNoCap :: GameState -> IO Move
 getMoveFRFRNoCap (GameState b piece phase) = do
+    putStrLn "Make a move:" --TODO cleverer prompts
     if phase == PhaseDrop then do
-        putStrLn "Make a move:"
         coords <- fmap strToCoords getLine
         maybe (getMoveFRFRNoCap (GameState b piece phase)) (return . Drop piece) coords
     else if phase == PhaseRemove then do
