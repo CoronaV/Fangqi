@@ -12,44 +12,19 @@ switchTurn (GameState b piece phase) = GameState b (switchColor piece) phase
 -- > phase end conditions where
 -- move function of player1 -> move function of player2 -> end eval function -> initial state -> final state
 
--- TODO: use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
+-- use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
 playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> IO GameState
 playGame p1 p2 endCondition current = do
     let ended = endCondition current
     if ended
         then return current
     else do
-        --chosenMove <- chooseMove p1 current
-        --let newState = checkLegalAndResolve current chosenMove  -- fix the board being drawn again if the move was illegal
-        --let mayCapture = checkCapture newState chosenMove
-
         chosenMoveCapture <- chooseMoveCapture p1 current
         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
         displayGameState afterMoveCapture
         playGame p2 p1 endCondition (switchTurn afterMoveCapture)
-        
-        -- if mayCapture
-        --     then do
-        --         -- importantly the color to play remains the same
-        --         -- until after the potential capture is resolved
-        --         putStrLn "A capture is possible!"
-        --         -- display the board again...
-        --         captureMove <- chooseCapture p1 newState
-        --         let afterCapture = checkLegalAndResolve newState captureMove
-        --         --print the new board
-        --         displayGameState afterCapture
-
-        --         -- swap players!
-        --         playGame p2 p1 endCondition (switchTurn afterCapture)
-        --     else do
-        --         --print the new board
-        --         displayGameState newState
-        --         playGame p2 p1 endCondition (switchTurn newState)
-        --current
-        --playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
     -- | endCondition current = current
     -- | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
-
 
 
 -- players stop dropping stones when the board is filled

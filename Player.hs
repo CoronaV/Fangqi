@@ -1,11 +1,11 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
-import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC)
+import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC)
 import Input (getMoveFRFRNoCap, getCapture)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
-import Data.List ( partition )
+import Data.List ( partition, find )
 import GHC.Utils.Misc (partitionByList)
 
 -- "player" is an interface with a method for choosing moves
@@ -95,9 +95,6 @@ checkExecuteCapture p gs move
     | checkCapture gs move = gs --TODO! change the gamestate with executeCapture
     | otherwise = gs
 
-
-
-
 -- the heuristic will say how good a position is for White
 -- or for a specified player?
 -- TODO: or should it automatically take the player on the move from the GameState? Or the player who just made the move?
@@ -119,37 +116,48 @@ heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFlo
 -- chooseStateFromChildren 
 
 
--- data StateAfterMove = StateAfterMove GameState Move
+data StateAfterMove = StateAfterMove GameState MoveCapture
 
--- captureHappened :: StateAfterMove -> Bool
--- captureHappened = _
-
--- TODO: actually, shouldn't a Move contain the following capture if it occurs??
--- that would make the minimax simpler
-
--- int argument: depth of evaluation
-minimaxGetBestMove :: GameState -> Int -> Piece -> Move
-minimaxGetBestMove gs depth playerColor = do
-    let moves = getPossibleMoves gs -- get available moves
-    --let childStates = map (\m -> StateAfterMove (checkLegalAndResolve gs m) m) moves -- the legality check should be unnecessary, moves should contain only legal moves
-    --let (childStatesCapture, childStatesNoCapture) = partitionByList (liftA2 checkCapture childStates) childStates
-    --let childStatesAfterCapture
-
-    -- TODO: problem: we need to simulate all possible captures as well
+-- the MoveCapture containing the following capture if it occurs makes the minimax simpler
+    -- problem: we need to simulate all possible captures as well
     -- and some moves will induce captures while others won't
     -- solution: replace child states that result in a capture with a set of child states after all possible captures
     -- though this will increase the branching factor considerably...
-    moves!!0
+
+
+-- bool argument: reverse/get minimum instead
+getIndexOfMaximum :: Ord a => [a] -> Bool -> Int
+getIndexOfMaximum xs True = head $ filter ((== maximum xs) . (xs !!)) [0..]
+getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
+
+-- int argument: depth of evaluation
+minimaxGetBestMove :: GameState -> Int -> Piece -> MoveCapture
+-- end recursion at depth 0
+minimaxGetBestMove gs 0 playerColor = do
+    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable) 
+    let childStates = map (checkLegalAndResolveMC gs) moveCaps--map (\mc -> StateAfterMove (checkLegalAndResolveMC gs mc) mc) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
+    -- evaluate child states and return the move that leads to the best one
+    let evaluations = map heuristic childStates
+    let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
+    moveCaps!!bestChildIndex
+
+minimaxGetBestMove gs depth playerColor = do
+    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable) 
+    let childStates = map (\mc -> StateAfterMove (checkLegalAndResolveMC gs mc) mc) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
+    
+
+    moveCaps!!0
 
 --     return ()
 
 
 data HeuristicAI = HeuristicAI
 
--- instance Player HeuristicAI where
---     chooseMove :: HeuristicAI -> GameState -> IO Move
---     chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
---     chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
---     chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
---     chooseCapture :: HeuristicAI -> GameState -> IO Move
---     chooseCapture HeuristicAI (GameState b piece _) = _
+instance Player HeuristicAI where
+    chooseMove :: HeuristicAI -> GameState -> IO Move
+    chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
+    chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
+    chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
+    chooseCapture :: HeuristicAI -> GameState -> IO Move
+    chooseCapture HeuristicAI (GameState b piece _) = _
+    chooseMoveCapture HeuristicAI gs = minimaxGetBestMove gs 1 

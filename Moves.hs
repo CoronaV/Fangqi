@@ -222,3 +222,12 @@ getPossibleCaptures (GameState b piece phase) = map (coordsToCapture (GameState 
     where
         isEmpty :: (BoardField, Int, Int) -> Bool
         isEmpty (bf, _, _) = bf == BoardField Nothing
+
+
+getCapturesIfApplicable :: GameState -> Move -> [MoveCapture]
+getCapturesIfApplicable gs move
+    | checkCapture gs move = map (MoveWithCapture move) (getPossibleCaptures gs) -- a capturing move
+    | otherwise = [MoveWithoutCapture move]
+
+getPossibleMCs :: GameState -> [MoveCapture]
+getPossibleMCs gs = concatMap (getCapturesIfApplicable gs) (getPossibleMoves gs)
