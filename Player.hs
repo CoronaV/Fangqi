@@ -1,7 +1,7 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
-import Moves (Move (..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve)
-import Input (getMoveFRFRNoCap)
+import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC)
+import Input (getMoveFRFRNoCap, getCapture)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
@@ -13,7 +13,8 @@ import GHC.Utils.Misc (partitionByList)
 -- (necessary primarily to implement human players) 
 class Player p where
     chooseMove :: p -> GameState -> IO Move -- a "regular move"
-    chooseCapture :: p -> GameState -> IO Move --rename this 
+    chooseCapture :: p -> GameState -> IO Capture --rename this 
+    chooseMoveCapture :: p -> GameState -> IO MoveCapture
 
 
 -- refactor this to use getPossibleMoves?
@@ -25,11 +26,23 @@ instance Player RandomAI where
     -- if there is no legal move, we messed up, so the AI will just make whatever move e.g. (0,0)
     -- and cause an exception down the line
     -- play on the first free field from top left, if there is any
-    chooseMove RandomAI (GameState b piece PhaseDrop) = return $ Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
-    chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
-    chooseMove RandomAI (GameState b piece PhaseShift) = return $ Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
-    chooseCapture :: RandomAI -> GameState -> IO Move
-    chooseCapture RandomAI (GameState b piece _) = chooseMove RandomAI (GameState b piece PhaseRemove)
+    chooseMove RandomAI gs = return $ head (getPossibleMoves gs)
+    -- chooseMove RandomAI (GameState b piece PhaseDrop) = return $ Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
+    -- chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
+    -- chooseMove RandomAI (GameState b piece PhaseShift) = return $ Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
+    chooseCapture :: RandomAI -> GameState -> IO Capture
+    chooseCapture RandomAI gs = return $ head (getPossibleCaptures gs)
+
+    chooseMoveCapture :: RandomAI -> GameState -> IO MoveCapture
+    chooseMoveCapture RandomAI gs = do
+        let chosenMove = head (getPossibleMoves gs)
+        let newState = checkLegalAndResolve gs chosenMove
+        let mayCapture = checkCapture newState chosenMove
+        if mayCapture then do
+            chosenCapture <- chooseCapture RandomAI gs
+            return $ MoveWithCapture chosenMove chosenCapture
+        else do -- no capture
+            return $ MoveWithoutCapture chosenMove
 
 data Human = Human --merge with RandomAI into one type with two constructors?
 
@@ -50,9 +63,26 @@ instance Player Human where
             else do
                 chooseMove Human gs
 
-    chooseCapture :: Human -> GameState -> IO Move
-    chooseCapture Human (GameState b piece _) = chooseMove Human (GameState b piece PhaseRemove)
-
+    chooseCapture :: Human -> GameState -> IO Capture
+    chooseCapture Human gs = do
+        -- "while move is illegal: get move"
+        capture <- getCapture gs
+        if isLegalCapture gs capture
+            then do
+                return capture
+            else do
+                chooseCapture Human gs
+    chooseMoveCapture :: Human -> GameState -> IO MoveCapture
+    chooseMoveCapture Human gs = do
+        -- "while move is illegal: get move"
+        chosenMove <- chooseMove Human gs
+        let newState = checkLegalAndResolve gs chosenMove
+        let mayCapture = checkCapture newState chosenMove
+        if mayCapture then do
+            chosenCapture <- chooseCapture Human gs
+            return $ MoveWithCapture chosenMove chosenCapture
+        else do -- no capture
+            return $ MoveWithoutCapture chosenMove
 
 -- put this inside Player/chooseMove instead?
 
@@ -89,9 +119,10 @@ heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFlo
 -- chooseStateFromChildren 
 
 
-data StateAfterMove = StateAfterMove GameState Move
+-- data StateAfterMove = StateAfterMove GameState Move
 
-captureHappened :: StateAfterMove -> Bool
+-- captureHappened :: StateAfterMove -> Bool
+-- captureHappened = _
 
 -- TODO: actually, shouldn't a Move contain the following capture if it occurs??
 -- that would make the minimax simpler
@@ -100,8 +131,8 @@ captureHappened :: StateAfterMove -> Bool
 minimaxGetBestMove :: GameState -> Int -> Piece -> Move
 minimaxGetBestMove gs depth playerColor = do
     let moves = getPossibleMoves gs -- get available moves
-    let childStates = map (\m -> StateAfterMove (checkLegalAndResolve gs m) m) moves -- the legality check should be unnecessary, moves should contain only legal moves
-    let (childStatesCapture, childStatesNoCapture) = partitionByList (liftA2 checkCapture childStates) childStates
+    --let childStates = map (\m -> StateAfterMove (checkLegalAndResolve gs m) m) moves -- the legality check should be unnecessary, moves should contain only legal moves
+    --let (childStatesCapture, childStatesNoCapture) = partitionByList (liftA2 checkCapture childStates) childStates
     --let childStatesAfterCapture
 
     -- TODO: problem: we need to simulate all possible captures as well

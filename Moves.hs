@@ -1,6 +1,6 @@
 module Moves where
 import Board
-    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard, emptyRow )
+    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard, emptyRow, spaceHasTypeEmptyExtend )
 import Data.Maybe (isNothing, fromMaybe)
 import GHC.Utils.Misc (count)
 
@@ -13,6 +13,19 @@ import GHC.Utils.Misc (count)
 -- for a Shift move two coords are needed, start and destination
 -- for all types Piece is the color of the player making the move (not the color of the removed piece!)
 data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
+    deriving Show
+
+
+data Capture = Capture Piece (Int, Int)
+    deriving Show
+
+-- TODO: actually, shouldn't a Move contain the following capture if it occurs??
+-- that would make the minimax simpler
+
+-- a move with *potentially* a capture included
+-- a capture move can occur independently, however, in the second phase!
+data MoveCapture = MoveWithCapture Move Capture | MoveWithoutCapture Move
+    --MoveWithCapture Move (Maybe Move )
     deriving Show
 
 replaceByIndex :: [a] -> Int -> a -> [a]
@@ -32,11 +45,18 @@ removeHereIsLegal (BoardField (Just White)) Black = True
 removeHereIsLegal (BoardField (Just Black)) White = True
 removeHereIsLegal _ _ = False
 
+shiftIsLegal :: Board -> Move -> Bool
+shiftIsLegal b ( Shift p (i,j) (i2,j2) ) = spaceHasTypeEmptyExtend b (i,j) (BoardField (Just p)) &&
+                                            elem (i2,j2) ( pieceCanMoveTo b (i,j) )
+
 -- check if a move is legal. The information about piece/player is contained in Move
 canPlayMoveHere :: Board -> Move -> Bool
 canPlayMoveHere b ( Drop p (i,j) ) = dropHereIsLegal $ b!!i!!j
 canPlayMoveHere b ( Remove p (i,j) ) = removeHereIsLegal (b!!i!!j) p
-canPlayMoveHere b ( Shift p (i,j) (i2,j2) ) = False --TODO
+canPlayMoveHere b ( Shift p (i,j) (i2,j2) ) = shiftIsLegal b ( Shift p (i,j) (i2,j2) )
+
+canPlayCaptureHere :: Board -> Capture -> Bool
+canPlayCaptureHere b ( Capture p (i,j) ) = removeHereIsLegal (b!!i!!j) p
 
 dropHereIsLegal :: BoardField -> Bool
 dropHereIsLegal (BoardField Nothing) = True
@@ -45,7 +65,11 @@ dropHereIsLegal _ = False
 changeBoard :: Board -> Move -> Board
 changeBoard b (Drop piece (i,j)) = changeSpace b (i,j) (Just piece)
 changeBoard b (Remove piece (i,j)) = changeSpace b (i,j) Nothing
-changeBoard b (Shift piece (i,j) (i2,j2)) = b -- TODO
+changeBoard b (Shift piece (i,j) (i2,j2)) = changeSpace (changeSpace b (i,j) Nothing) (i2,j2) (Just piece)
+
+changeBoardMC :: Board -> MoveCapture -> Board
+changeBoardMC b (MoveWithCapture move (Capture piece (i,j))) = changeSpace (changeBoard b move) (i,j) Nothing
+changeBoardMC b (MoveWithoutCapture move) = changeBoard b move
 
 switchColor :: Piece -> Piece
 switchColor White = Black
@@ -78,11 +102,23 @@ moveInBounds b (Drop piece (i,j)) = isInBounds b (i,j)
 moveInBounds b (Remove piece (i,j)) = isInBounds b (i,j)
 moveInBounds b (Shift piece (i,j) (i2,j2)) = isInBounds b (i,j) && isInBounds b (i2,j2)
 
+captureInBounds :: Board -> Capture -> Bool
+captureInBounds b (Capture piece (i,j)) = isInBounds b (i,j)
+
 
 -- no need to check if the move is of the correct type, the game will just not allow wrong move types
 -- should we check just in case if the gamestate color to play corresponds to the move color?
 isLegal :: GameState -> Move -> Bool
 isLegal (GameState b piece _) move = moveInBounds b move && canPlayMoveHere b move
+
+isLegalCapture :: GameState -> Capture -> Bool
+isLegalCapture (GameState b piece _) capture = captureInBounds b capture && canPlayCaptureHere b capture
+
+-- don't need to change the board between checking the move and capture because you only capture enemy pieces,
+-- which stay in place during a drop/shift move, and you can't trigger a capture on a remove move
+isLegalMC :: GameState -> MoveCapture -> Bool
+isLegalMC gs (MoveWithCapture move capture) = isLegal gs move && isLegalCapture gs capture
+isLegalMC gs (MoveWithoutCapture move) = isLegal gs move
 
 -- check if move is in bounds and is played on a valid target field
 -- will not change turn because it's necessary to capture with the same color if a capture is possible before changing turn
@@ -93,6 +129,10 @@ checkLegalAndResolve (GameState b piece phase) move
     | isLegal (GameState b piece phase) move = GameState (changeBoard b move) piece phase
     | otherwise = GameState b piece phase
 
+checkLegalAndResolveMC :: GameState -> MoveCapture -> GameState
+checkLegalAndResolveMC (GameState b piece phase) move
+    | isLegalMC (GameState b piece phase) move = GameState (changeBoardMC b move) piece phase
+    | otherwise = GameState b piece phase
 
 -- the last move is a necessary argument to check which squares have been newly formed
 -- the gamestate argument will be the gamestate *after* the move happened to avoid simulating the move anyways
@@ -116,7 +156,8 @@ checkCapture gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of 
 --TODO: merge this (BoardField, Int, Int) -> GameState -> Move with functions handling 
 -- player input?
 coordsToMove :: GameState -> (BoardField, Int, Int) -> Move
-coordsToMove (GameState b piece PhaseDrop)  (lol, i, j) = Drop piece (i,j)
+coordsToMove (GameState b piece PhaseDrop)  (_, i, j) = Drop piece (i,j)
+coordsToMove (GameState b piece PhaseRemove)  (_, i, j) = Remove piece (i,j)
 
 
 coordsFromToShiftMoveList :: GameState -> (Int, Int) -> [Move]
@@ -172,3 +213,12 @@ getPossibleMoves (GameState b piece PhaseShift) = concatMap (coordsFromToShiftMo
         toCoords :: (BoardField, Int, Int) -> (Int, Int)
         toCoords (_, i, j) = (i,j)
 
+
+coordsToCapture :: GameState -> (BoardField, Int, Int) -> Capture
+coordsToCapture (GameState b piece _)  (_, i, j) = Capture piece (i,j)
+
+getPossibleCaptures :: GameState -> [Capture]
+getPossibleCaptures (GameState b piece phase) = map (coordsToCapture (GameState b piece phase)) (filter isEmpty (flattenWithCoords b))
+    where
+        isEmpty :: (BoardField, Int, Int) -> Bool
+        isEmpty (bf, _, _) = bf == BoardField Nothing

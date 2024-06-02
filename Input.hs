@@ -1,5 +1,5 @@
 module Input where
-import Moves (Move (..))
+import Moves (Move (..), Capture(..))
 import Board (Piece(..), Phase (..), GameState (..))
 import Data.Maybe (fromMaybe)
 import GHC.IO (evaluate)
@@ -64,3 +64,10 @@ getMoveFRFRNoCap (GameState b piece phase) = do
         coordsFrom <- fmap strToCoords getLine
         coordsTo <- fmap strToCoords getLine
         maybe (getMoveFRFRNoCap (GameState b piece phase)) return (liftA2 (Shift piece) coordsFrom coordsTo)
+
+
+getCapture :: GameState -> IO Capture
+getCapture (GameState b piece phase) = do
+    putStrLn "A capture is possible! Choose a stone to capture:"
+    coords <- fmap strToCoords getLine
+    maybe (getCapture (GameState b piece phase)) (return . Capture piece) coords
