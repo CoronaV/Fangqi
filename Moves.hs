@@ -126,7 +126,7 @@ isLegalMC gs (MoveWithoutCapture move) = isLegal gs move
 -- TODO: check in a 'shift' move if the coords are in a row or column and spaces between them are free 
 checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
-    | isLegal (GameState b piece phase) move = GameState (changeBoard b move) piece phase
+    | isLegal (GameState b piece phase) move = GameState (changeBoard b move) (switchColor piece) phase
     | otherwise = GameState b piece phase
 
 
@@ -144,25 +144,22 @@ checkLegalAndResolveMC (GameState b piece phase) move
 -- also dropped pieces won't be detected until after the move has taken place
 -- to this end, captures will be checked *after* the move is executed!!
 checkCaptureAfter :: GameState -> Move -> Bool
-checkCaptureAfter gs (Remove _ _) = False --removes never form squares
 checkCaptureAfter (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece
-checkCaptureAfter gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of forming squares, a piece arriving on a square is the same as a drop...*
+checkCaptureAfter gs (Remove _ _) = False --removes never form squares
+checkCaptureAfter (GameState b _ _ ) (Shift piece (i,j) (i2,j2)) = isAnyCornerOfSquare b piece (i2,j2) -- for the purposes of forming squares, a piece arriving on a square is the same as a drop...
 
 checkCaptureBefore :: GameState -> Move -> Bool
 checkCaptureBefore gs move = checkCaptureAfter (checkLegalAndResolve gs move) move
 
---TODO: merge this (BoardField, Int, Int) -> GameState -> Move with functions handling 
--- player input?
+
 coordsToMove :: GameState -> (BoardField, Int, Int) -> Move
 coordsToMove (GameState b piece PhaseDrop)  (_, i, j) = Drop piece (i,j)
 coordsToMove (GameState b piece PhaseRemove)  (_, i, j) = Remove piece (i,j)
-
 
 coordsFromToShiftMoveList :: GameState -> (Int, Int) -> [Move]
 coordsFromToShiftMoveList (GameState b piece PhaseShift) (fromI, fromJ) = map (Shift piece (fromI,fromJ)) destinations
     where
         destinations = pieceCanMoveTo b (fromI, fromJ)
-        --Shift piece fromI fromJ
 
 -- lists all spaces a piece can move to with a Shift move from a specified square
 -- take four vectors, takeWhile empty spaces in the direction of each

@@ -53,15 +53,19 @@ strToCoords _ = Nothing
 --while Nothing: repeat
 getMoveFRFRNoCap :: GameState -> IO Move
 getMoveFRFRNoCap (GameState b piece phase) = do
-    putStrLn "Make a move:" --TODO cleverer prompts
+    putStr "Make a move. "
     if phase == PhaseDrop then do
+        putStr "Drop piece to: "
         coords <- fmap strToCoords getLine
         maybe (getMoveFRFRNoCap (GameState b piece phase)) (return . Drop piece) coords
     else if phase == PhaseRemove then do
+        putStr "Remove opponent piece from: "
         coords <- fmap strToCoords getLine
         maybe (getMoveFRFRNoCap (GameState b piece phase)) (return . Remove piece) coords       
     else do
+        putStr "Move piece from: "
         coordsFrom <- fmap strToCoords getLine
+        putStr "Move piece to: "
         coordsTo <- fmap strToCoords getLine
         maybe (getMoveFRFRNoCap (GameState b piece phase)) return (liftA2 (Shift piece) coordsFrom coordsTo)
 

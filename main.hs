@@ -17,8 +17,8 @@ import Moves (Move(..),checkLegalAndResolve, switchColor, getSpaceOfType, getSpa
 -- and for simulating the minimax algorithm
 
 -- use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
-playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> IO GameState
-playGame p1 p2 endCondition current = do
+playPhase :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> IO GameState
+playPhase p1 p2 endCondition current = do
     let ended = endCondition current
     if ended
         then return current
@@ -26,9 +26,24 @@ playGame p1 p2 endCondition current = do
         chosenMoveCapture <- chooseMoveCapture p1 current
         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
         displayGameState afterMoveCapture
-        playGame p2 p1 endCondition afterMoveCapture --(switchTurn afterMoveCapture)
+        playPhase p2 p1 endCondition afterMoveCapture
     -- | endCondition current = current
-    -- | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
+    -- | otherwise = playPhase p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
+
+
+
+-- (Int,Int) = size of board
+playGame :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
+playGame p1 p2 (i,j) = do
+    putStrLn "Start of game, the players take turns dropping pieces"
+    dropEnd <- playPhase p1 p2 dropPhaseEndCheck (GameState (emptyBoard i j) White PhaseDrop )
+    putStrLn "End of drop phase, now each player removes one piece"
+    removeEnd <- playPhase p1 p2 removePhaseEndCheck (nextPhase dropEnd)
+    putStrLn "End of remove phase, now players take turn shifting a piece any number of free squares vertically or horizontally."
+    shiftEnd <- playPhase p1 p2 shiftPhaseEndCheck (nextPhase removeEnd)
+    putStrLn "End of game. The result is:"
+    putStrLn (evaluateEndPosition shiftEnd)
+    return ()
 
 
 -- players stop dropping stones when the board is filled
@@ -39,7 +54,6 @@ dropPhaseEndCheck (GameState b _ _) = isNothing $ getSpaceOfType b (BoardField N
 nextPhase :: GameState -> GameState
 nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
 nextPhase (GameState b piece PhaseRemove) = GameState b piece PhaseShift
-nextPhase (GameState b piece PhaseShift) = GameState b piece PhaseShift --TODO
 
 
 -- 2nd phase: each player removes one of their opponent's stones
@@ -48,18 +62,19 @@ removePhaseEndCheck :: GameState -> Bool
 removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing) >= 2
 
 
-
-
 -- make phase a class with this as method? or merge the endCheck methods into one since GameState contains Phase info?
 -- the game ends if there are no white or no black stones
 -- also TODO: draw on repetition of position, requires keeping history
 shiftPhaseEndCheck :: GameState -> Bool
 shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just White) == 0 || getSpaceTypeNumber b (BoardField $ Just Black) == 0
 
--- sampleGameShiftPhase :: IO GameState
--- sampleGameShiftPhase = playGame RandomAI RandomAI shiftPhaseEndCheck (nextPhase sampleGameRemovePhase) --TODO
-
 
 --TODO: add captures to the drop phase! work on this since this will be required in the shift phase too
 -- some Fangqi variations have the players count the squares and remove pieces all at once at the end of the drop phase,
 -- but it might be easier to just remove a piece immediately as in the shift phase?
+
+evaluateEndPosition :: GameState -> String
+evaluateEndPosition (GameState b piece _)
+    | isNothing $ getSpaceOfType b (BoardField $ Just White) = "Black won the game!" --there are no white pieces left
+    | isNothing $ getSpaceOfType b (BoardField $ Just Black) = "White won the game!"
+    | otherwise = "The game is drawn!"

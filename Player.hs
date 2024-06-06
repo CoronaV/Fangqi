@@ -130,10 +130,26 @@ getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
 -- int argument: depth of evaluation
 -- returns best move and value of best move for recursion
 -- essentially this function should just simulate "play", except that it cuts off at a certain depth and returns an evaluation...
--- problem! players are not switched!
+
+-- bool : optimize performance
+-- if the board is empty: play in the center
+-- otherwise play only on spaces with at least one nonempty neighbor to boost performance
+
+
+minimaxExceptionCatcher :: Int -> GameState -> (MoveCapture, Float)
+minimaxExceptionCatcher depth gs = do
+    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
+    -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
+    -- or, ideally, rewrite this so it fully simulates the Play function
+    --actually, instead check if the phase has ended
+    if null moveCaps then do
+        (dummyMove, 1)
+    else do
+        minimaxGetBestMove depth gs
+    where dummyMove = MoveWithoutCapture (Drop White (0,0))
+
 minimaxGetBestMove :: Int -> GameState -> (MoveCapture, Float)
--- end recursion at depth 0
-minimaxGetBestMove 0 (GameState b playerColor phase) = do
+minimaxGetBestMove 0 (GameState b playerColor phase) = do -- end recursion at depth 0
     let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
     -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
     -- or, ideally, rewrite this so it fully simulates the Play function
@@ -180,3 +196,4 @@ instance Player HeuristicAI where
     -- chooseCapture HeuristicAI (GameState b piece _) = _
     chooseMoveCapture :: HeuristicAI -> GameState -> IO MoveCapture
     chooseMoveCapture HeuristicAI gs = return $ fst (minimaxGetBestMove 3 gs)
+

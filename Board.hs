@@ -123,3 +123,4 @@ cartesianProduct xs ys = [(x,y) | x <- xs, y <- ys]
 getAllCoords :: Board -> [(Int, Int)]
 getAllCoords b = cartesianProduct [0..boardRows b-1] [0..boardCols b-1]
 
+
