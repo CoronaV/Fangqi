@@ -1,12 +1,13 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
-import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, checkCapture, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC)
+import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter)
 import Input (getMoveFRFRNoCap, getCapture)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
 import Data.List ( partition, find )
 import GHC.Utils.Misc (partitionByList)
+import Debug.Trace (trace)
 
 -- "player" is an interface with a method for choosing moves
 -- it returns IO Move - i.e. there is no guarantee that the same player will choose the same move twice
@@ -37,7 +38,7 @@ instance Player RandomAI where
     chooseMoveCapture RandomAI gs = do
         let chosenMove = head (getPossibleMoves gs)
         let newState = checkLegalAndResolve gs chosenMove
-        let mayCapture = checkCapture newState chosenMove
+        let mayCapture = checkCaptureAfter newState chosenMove
         if mayCapture then do
             chosenCapture <- chooseCapture RandomAI gs
             return $ MoveWithCapture chosenMove chosenCapture
@@ -77,7 +78,7 @@ instance Player Human where
         -- "while move is illegal: get move"
         chosenMove <- chooseMove Human gs
         let newState = checkLegalAndResolve gs chosenMove
-        let mayCapture = checkCapture newState chosenMove
+        let mayCapture = checkCaptureAfter newState chosenMove
         if mayCapture then do
             chosenCapture <- chooseCapture Human gs
             return $ MoveWithCapture chosenMove chosenCapture
@@ -92,7 +93,7 @@ instance Player Human where
 -- the GameState is the state after the move??
 checkExecuteCapture :: (Player p) => p -> GameState -> Move -> GameState
 checkExecuteCapture p gs move
-    | checkCapture gs move = gs --TODO! change the gamestate with executeCapture
+    | checkCaptureAfter gs move = gs --TODO! change the gamestate with executeCapture
     | otherwise = gs
 
 -- the heuristic will say how good a position is for White
@@ -105,18 +106,13 @@ checkExecuteCapture p gs move
 -- ...at least in the "shift phase" 
 
 
+-- should work fine (returning Infinity) even if black stones are 0
 heuristic :: GameState -> Float
 heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFloat b Black
     where
         getPlayerStonesFloat :: Board -> Piece -> Float
         getPlayerStonesFloat b playerColor = int2Float $ getSpaceTypeNumber b (BoardField $ Just playerColor)
 
-
--- chooseStateFromChildren :: [(GameState, Float)] -> Piece -> (GameState, Float)
--- chooseStateFromChildren 
-
-
-data StateAfterMove = StateAfterMove GameState MoveCapture
 
 -- the MoveCapture containing the following capture if it occurs makes the minimax simpler
     -- problem: we need to simulate all possible captures as well
@@ -130,34 +126,57 @@ getIndexOfMaximum :: Ord a => [a] -> Bool -> Int
 getIndexOfMaximum xs True = head $ filter ((== maximum xs) . (xs !!)) [0..]
 getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
 
+
 -- int argument: depth of evaluation
-minimaxGetBestMove :: GameState -> Int -> Piece -> MoveCapture
+-- returns best move and value of best move for recursion
+-- essentially this function should just simulate "play", except that it cuts off at a certain depth and returns an evaluation...
+-- problem! players are not switched!
+minimaxGetBestMove :: Int -> GameState -> (MoveCapture, Float)
 -- end recursion at depth 0
-minimaxGetBestMove gs 0 playerColor = do
-    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable) 
-    let childStates = map (checkLegalAndResolveMC gs) moveCaps--map (\mc -> StateAfterMove (checkLegalAndResolveMC gs mc) mc) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
-    -- evaluate child states and return the move that leads to the best one
-    let evaluations = map heuristic childStates
-    let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
-    moveCaps!!bestChildIndex
+minimaxGetBestMove 0 (GameState b playerColor phase) = do
+    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
+    -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
+    -- or, ideally, rewrite this so it fully simulates the Play function
+    if null moveCaps then do
+        (dummyMove, 1)
+    else do
+        let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
+        -- evaluate child states and return the move that leads to the best one
+        let evaluations = map heuristic childStates
+        let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
+        (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
 
-minimaxGetBestMove gs depth playerColor = do
-    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable) 
-    let childStates = map (\mc -> StateAfterMove (checkLegalAndResolveMC gs mc) mc) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
-    
+        where
+            gs = GameState b playerColor phase
+            dummyMove = MoveWithoutCapture (Drop White (0,0))
 
-    moveCaps!!0
+minimaxGetBestMove depth (GameState b playerColor phase) = do
+    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
+        -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
+        -- or, ideally, rewrite this so it fully simulates the Play function
+    if null moveCaps then do
+        (dummyMove, 1)
+    else do
+        let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
 
---     return ()
+        -- what exactly are the best responses to the investigated moves doesn't interest us, we want just the evaluation of the moves
+        let (_,evaluations) = unzip $ map (minimaxGetBestMove (depth-1)) childStates
+        let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
+        (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
+
+    where
+        gs = GameState b playerColor phase
+        dummyMove = MoveWithoutCapture (Drop White (0,0))
 
 
 data HeuristicAI = HeuristicAI
 
 instance Player HeuristicAI where
-    chooseMove :: HeuristicAI -> GameState -> IO Move
-    chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
-    chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
-    chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
-    chooseCapture :: HeuristicAI -> GameState -> IO Move
-    chooseCapture HeuristicAI (GameState b piece _) = _
-    chooseMoveCapture HeuristicAI gs = minimaxGetBestMove gs 1 
+    -- chooseMove :: HeuristicAI -> GameState -> IO Move
+    -- chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
+    -- chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
+    -- chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
+    -- chooseCapture :: HeuristicAI -> GameState -> IO Capture
+    -- chooseCapture HeuristicAI (GameState b piece _) = _
+    chooseMoveCapture :: HeuristicAI -> GameState -> IO MoveCapture
+    chooseMoveCapture HeuristicAI gs = return $ fst (minimaxGetBestMove 3 gs)

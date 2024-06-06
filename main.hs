@@ -3,14 +3,18 @@ import Debug.Trace (trace)
 import Board
     ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare, displayGameState )
 import Player (Player (..), RandomAI (..), Human (..))
-import Moves (Move(..),checkLegalAndResolve, switchColor, getSpaceOfType, getSpaceTypeNumber, checkCapture, MoveCapture (..), checkLegalAndResolveMC)
+import Moves (Move(..),checkLegalAndResolve, switchColor, getSpaceOfType, getSpaceTypeNumber, MoveCapture (..), checkLegalAndResolveMC)
 
 
-switchTurn :: GameState -> GameState
-switchTurn (GameState b piece phase) = GameState b (switchColor piece) phase
+-- switchTurn :: GameState -> GameState
+-- switchTurn (GameState b piece phase) = GameState b (switchColor piece) phase
 
 -- > phase end conditions where
 -- move function of player1 -> move function of player2 -> end eval function -> initial state -> final state
+
+-- improve this function/build on this function
+-- so it can be used to play the complete 3-phase game
+-- and for simulating the minimax algorithm
 
 -- use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
 playGame :: (Player p1, Player p2) => p1 -> p2 -> (GameState -> Bool) -> GameState -> IO GameState
@@ -22,7 +26,7 @@ playGame p1 p2 endCondition current = do
         chosenMoveCapture <- chooseMoveCapture p1 current
         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
         displayGameState afterMoveCapture
-        playGame p2 p1 endCondition (switchTurn afterMoveCapture)
+        playGame p2 p1 endCondition afterMoveCapture --(switchTurn afterMoveCapture)
     -- | endCondition current = current
     -- | otherwise = playGame p1 p2 endCondition (checkLegalAndResolve current (makeMove p1 current))
 

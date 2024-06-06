@@ -129,29 +129,27 @@ checkLegalAndResolve (GameState b piece phase) move
     | isLegal (GameState b piece phase) move = GameState (changeBoard b move) piece phase
     | otherwise = GameState b piece phase
 
+
+--switches turn
 checkLegalAndResolveMC :: GameState -> MoveCapture -> GameState
 checkLegalAndResolveMC (GameState b piece phase) move
-    | isLegalMC (GameState b piece phase) move = GameState (changeBoardMC b move) piece phase
+    | isLegalMC (GameState b piece phase) move = GameState (changeBoardMC b move) (switchColor piece) phase
     | otherwise = GameState b piece phase
-
--- the last move is a necessary argument to check which squares have been newly formed
--- the gamestate argument will be the gamestate *after* the move happened to avoid simulating the move anyways
--- only to discard the results and execute the move later
--- resolveCapture :: GameState -> Move -> GameState
--- resolveCapture gs move
---     | checkCapture = 
---     | otherwise = gs -- no captures, keep the same state
 
 
 --  reports back Bool capture has happened Y/N to the main loop
 -- which will choose the capturing move and send it here to be executed
 -- note: a piece should not be able to form a square with its former position!
--- to this end, captures will be checked *after* the move is executed
-checkCapture :: GameState -> Move -> Bool
-checkCapture gs (Remove _ _) = False --removes never form squares
-checkCapture (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece
-checkCapture gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of forming squares, a piece arriving on a square is the same as a drop...*
 
+-- also dropped pieces won't be detected until after the move has taken place
+-- to this end, captures will be checked *after* the move is executed!!
+checkCaptureAfter :: GameState -> Move -> Bool
+checkCaptureAfter gs (Remove _ _) = False --removes never form squares
+checkCaptureAfter (GameState b _ _ ) (Drop piece (i,j)) = isAnyCornerOfSquare b piece (i,j) -- check the four squares around the dropped piece
+checkCaptureAfter gs (Shift piece (i,j) (i2,j2)) = False -- TODO for the purposes of forming squares, a piece arriving on a square is the same as a drop...*
+
+checkCaptureBefore :: GameState -> Move -> Bool
+checkCaptureBefore gs move = checkCaptureAfter (checkLegalAndResolve gs move) move
 
 --TODO: merge this (BoardField, Int, Int) -> GameState -> Move with functions handling 
 -- player input?
@@ -187,10 +185,6 @@ freeSpacesInDirection b (fromI, fromJ) (vectI,vectJ)
         newI = fromI+vectI
         newJ = fromJ+vectJ
 
-oneStoneBoard :: Board
-oneStoneBoard = [emptyRow 3, [BoardField Nothing, BoardField (Just Black), BoardField Nothing], emptyRow 3]
-testPossMoves :: [Move]
-testPossMoves = getPossibleMoves (GameState oneStoneBoard Black PhaseShift)
 
 getPossibleMoves :: GameState -> [Move]
 getPossibleMoves (GameState b piece PhaseDrop) = map (coordsToMove (GameState b piece PhaseDrop)) (filter isEmpty (flattenWithCoords b))
@@ -218,16 +212,18 @@ coordsToCapture :: GameState -> (BoardField, Int, Int) -> Capture
 coordsToCapture (GameState b piece _)  (_, i, j) = Capture piece (i,j)
 
 getPossibleCaptures :: GameState -> [Capture]
-getPossibleCaptures (GameState b piece phase) = map (coordsToCapture (GameState b piece phase)) (filter isEmpty (flattenWithCoords b))
+getPossibleCaptures (GameState b piece phase) = map (coordsToCapture (GameState b piece phase)) (filter isEnemy (flattenWithCoords b))
     where
-        isEmpty :: (BoardField, Int, Int) -> Bool
-        isEmpty (bf, _, _) = bf == BoardField Nothing
+        isEnemy :: (BoardField, Int, Int) -> Bool
+        isEnemy (bf, _, _) = bf == BoardField (Just $ switchColor piece)
 
 
+-- needs to detect captures that take place 
 getCapturesIfApplicable :: GameState -> Move -> [MoveCapture]
 getCapturesIfApplicable gs move
-    | checkCapture gs move = map (MoveWithCapture move) (getPossibleCaptures gs) -- a capturing move
+    | checkCaptureBefore gs move = map (MoveWithCapture move) (getPossibleCaptures gs) -- a capturing move
     | otherwise = [MoveWithoutCapture move]
+
 
 getPossibleMCs :: GameState -> [MoveCapture]
 getPossibleMCs gs = concatMap (getCapturesIfApplicable gs) (getPossibleMoves gs)
