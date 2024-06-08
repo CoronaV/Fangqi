@@ -91,7 +91,7 @@ fbTest = minimaxGetBestMove 0 (GameState fullBoard White PhaseDrop)
 
 
 overallTest :: IO ()
-overallTest = playGame Human Human (9,9)
+overallTest = playGame Human Human (7,7)
 
 smallBoardTest :: IO()
 smallBoardTest = playGame HeuristicAI Human (5,5)
@@ -99,6 +99,7 @@ smallBoardTest = playGame HeuristicAI Human (5,5)
 --need: better console interaction for announcing captures/AI moves, getting Shift moves, announcing what type of move you're doing
 -- support for one-line shift moves? "b5 d5"
 -- speed up AI, e.g. by selecting captures entirely heuristically (enemy piece in most squares)
+-- choose top 15 moves by heuristics (number of pieces next to it), then minimax among them
 
 -- define both heuristics and mechanics for loss if no moves available and phase end conditions not met
 

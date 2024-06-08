@@ -222,5 +222,6 @@ getCapturesIfApplicable gs move
     | otherwise = [MoveWithoutCapture move]
 
 
+
 getPossibleMCs :: GameState -> [MoveCapture]
 getPossibleMCs gs = concatMap (getCapturesIfApplicable gs) (getPossibleMoves gs)

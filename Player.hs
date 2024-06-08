@@ -1,11 +1,11 @@
 module Player where
-import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board)
-import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter)
+import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board, getNonEmptyNeighborCount)
+import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore)
 import Input (getMoveFRFRNoCap, getCapture)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
-import Data.List ( partition, find )
+import Data.List ( partition, find, sortBy )
 import GHC.Utils.Misc (partitionByList)
 import Debug.Trace (trace)
 
@@ -153,36 +153,26 @@ minimaxGetBestMove 0 (GameState b playerColor phase) = do -- end recursion at de
     let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
     -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
     -- or, ideally, rewrite this so it fully simulates the Play function
-    if null moveCaps then do
-        (dummyMove, 1)
-    else do
-        let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
-        -- evaluate child states and return the move that leads to the best one
-        let evaluations = map heuristic childStates
-        let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
-        (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
+    let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
+    -- evaluate child states and return the move that leads to the best one
+    let evaluations = map heuristic childStates
+    let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
+    (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
 
-        where
-            gs = GameState b playerColor phase
-            dummyMove = MoveWithoutCapture (Drop White (0,0))
+    where gs = GameState b playerColor phase
 
 minimaxGetBestMove depth (GameState b playerColor phase) = do
     let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
         -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
         -- or, ideally, rewrite this so it fully simulates the Play function
-    if null moveCaps then do
-        (dummyMove, 1)
-    else do
-        let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
+    let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
 
-        -- what exactly are the best responses to the investigated moves doesn't interest us, we want just the evaluation of the moves
-        let (_,evaluations) = unzip $ map (minimaxGetBestMove (depth-1)) childStates
-        let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
-        (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
+    -- what exactly are the best responses to the investigated moves doesn't interest us, we want just the evaluation of the moves
+    let (_,evaluations) = unzip $ map (minimaxExceptionCatcher (depth-1)) childStates
+    let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
+    (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
 
-    where
-        gs = GameState b playerColor phase
-        dummyMove = MoveWithoutCapture (Drop White (0,0))
+    where gs = GameState b playerColor phase
 
 
 data HeuristicAI = HeuristicAI
@@ -195,5 +185,29 @@ instance Player HeuristicAI where
     -- chooseCapture :: HeuristicAI -> GameState -> IO Capture
     -- chooseCapture HeuristicAI (GameState b piece _) = _
     chooseMoveCapture :: HeuristicAI -> GameState -> IO MoveCapture
-    chooseMoveCapture HeuristicAI gs = return $ fst (minimaxGetBestMove 3 gs)
+    chooseMoveCapture HeuristicAI gs = return $ fst (minimaxExceptionCatcher 3 gs)
+
+-- piece is the *capturing* color
+getCaptureHeuristic :: Board -> Capture -> Float
+getCaptureHeuristic b (Capture piece (i,j)) = int2Float $ getNonEmptyNeighborCount b (i,j)
+
+-- often it doesn't make much of a difference which pieces you capture
+-- typically it's better to capture enemy pieces that are next to more enemy pieces (forming a square)
+-- to improve performance on a large board choose N captures and apply them
+getNBestCapturesHeuristic :: Int -> GameState -> Move -> [MoveCapture]
+getNBestCapturesHeuristic n (GameState board piece phase) move
+    | checkCaptureBefore gs move = do
+        let captures = getPossibleCaptures gs -- a capturing move
+        let heuristicValues = map (getCaptureHeuristic board) captures
+        let zipped = zip captures heuristicValues
+        let sorted = sortBy (\a b -> if snd a > snd b then GT else LT) zipped
+        let bestCaptures = take n $ map fst sorted --extract the best captures
+        map (MoveWithCapture move) bestCaptures
+    | otherwise = [MoveWithoutCapture move]
+    where gs = GameState board piece phase
+
+
+
+getBestHeuristicMCs :: GameState -> [MoveCapture]
+getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 4 gs) (getPossibleMoves gs)
 

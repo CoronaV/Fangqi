@@ -123,4 +123,17 @@ cartesianProduct xs ys = [(x,y) | x <- xs, y <- ys]
 getAllCoords :: Board -> [(Int, Int)]
 getAllCoords b = cartesianProduct [0..boardRows b-1] [0..boardCols b-1]
 
+-- useful for heuristics
+-- typically places adjacent to both your pieces and the opponent's pieces are good to get your pieces into
+-- or remove opponent's pieces from
+-- counts orthogonal neigbors only for simplicity
+getNonEmptyNeighborCount :: Board -> (Int, Int) -> Int
+getNonEmptyNeighborCount b (i,j) = numberOfPiecesOnSquare b (i+1,j) +
+                                    numberOfPiecesOnSquare b (i,j+1) +
+                                    numberOfPiecesOnSquare b (i-1,j) +
+                                    numberOfPiecesOnSquare b (i,j-1)
 
+numberOfPiecesOnSquare :: Board -> (Int, Int) -> Int
+numberOfPiecesOnSquare b (i,j)
+            | spaceHasTypeEmptyExtend b (i,j) (BoardField Nothing) = 0
+            | otherwise = 1
