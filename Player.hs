@@ -1,39 +1,20 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board, getNonEmptyNeighborCount)
-import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore, describeMoveCapture)
+import Moves (Move (..), Capture(..), isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore, describeMoveCapture)
 import Input (requestMoveUntilGot, getCapture)
-import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
-import Data.List ( partition, find, sortBy )
-import GHC.Utils.Misc (partitionByList)
-import Debug.Trace (trace)
+import Data.List ( sortBy )
 
 -- "player" is an interface with a method for choosing moves
 -- it returns IO Move - i.e. there is no guarantee that the same player will choose the same move twice
--- (necessary primarily to implement human players) 
+-- (necessary primarily to implement human players)
 class Player p where
-    chooseMove :: p -> GameState -> IO Move -- a "regular move"
-    chooseCapture :: p -> GameState -> IO Capture --rename this 
     chooseMoveCapture :: p -> GameState -> IO MoveCapture
 
-
--- refactor this to use getPossibleMoves?
--- also put a check for getPossibleMoves returning 0 moves in the main loop -> end game
 data RandomAI = RandomAI
 
 instance Player RandomAI where
-    chooseMove :: RandomAI -> GameState -> IO Move
-    -- if there is no legal move, we messed up, so the AI will just make whatever move e.g. (0,0)
-    -- and cause an exception down the line
-    -- play on the first free field from top left, if there is any
-    chooseMove RandomAI gs = return $ head (getPossibleMoves gs)
-    -- chooseMove RandomAI (GameState b piece PhaseDrop) = return $ Drop piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField Nothing) )
-    -- chooseMove RandomAI (GameState b piece PhaseRemove) = return $ Remove piece $ fromMaybe (0,0) (getSpaceOfType b (BoardField (Just $ switchColor piece)) )
-    -- chooseMove RandomAI (GameState b piece PhaseShift) = return $ Shift piece (0,0) (0,0) --TODO: get one of the player's stones that has a neighboring space free, move it there
-    chooseCapture :: RandomAI -> GameState -> IO Capture
-    chooseCapture RandomAI gs = return $ head (getPossibleCaptures gs)
-
     chooseMoveCapture :: RandomAI -> GameState -> IO MoveCapture
     chooseMoveCapture RandomAI gs = do
         let chosenMove = head (getPossibleMoves gs)
@@ -44,32 +25,18 @@ instance Player RandomAI where
             return $ MoveWithCapture chosenMove chosenCapture
         else do -- no capture
             return $ MoveWithoutCapture chosenMove
+        where
+            chooseMove :: RandomAI -> GameState -> IO Move
+            -- if there is no legal move, a function checking for end states messed up, so the AI will just make whatever move e.g. (0,0)
+            -- and cause an exception down the line
+            -- play on the first free field from top left, if there is any
+            chooseMove RandomAI gs = return $ head (getPossibleMoves gs)
+            chooseCapture :: RandomAI -> GameState -> IO Capture
+            chooseCapture RandomAI gs = return $ head (getPossibleCaptures gs)
 
 data Human = Human
 
 instance Player Human where
-    chooseMove :: Human -> GameState -> IO Move
-    -- the input system is context-aware, the human will just type in coords and the remaining
-    -- info about the move will be filled in by the system
-    chooseMove Human gs = do
-        -- "while move is illegal: get move"
-        move <- requestMoveUntilGot gs
-        if isLegal gs move
-            then do
-                return move
-            else do
-                putStrLn "Illegal move! Choose another one."
-                chooseMove Human gs
-
-    chooseCapture :: Human -> GameState -> IO Capture
-    chooseCapture Human gs = do
-        -- "while move is illegal: get move"
-        capture <- getCapture gs
-        if isLegalCapture gs capture
-            then do
-                return capture
-            else do
-                chooseCapture Human gs
     chooseMoveCapture :: Human -> GameState -> IO MoveCapture
     chooseMoveCapture Human gs = do
         chosenMove <- chooseMove Human gs
@@ -80,6 +47,28 @@ instance Player Human where
             return $ MoveWithCapture chosenMove chosenCapture
         else do -- no capture
             return $ MoveWithoutCapture chosenMove
+        where
+            chooseMove :: Human -> GameState -> IO Move
+            -- the input system is context-aware, the human will just type in coords and the remaining
+            -- info about the move will be filled in by the system
+            chooseMove Human gs = do
+                -- "while move is illegal: get move"
+                move <- requestMoveUntilGot gs
+                if isLegal gs move
+                    then do
+                        return move
+                    else do
+                        putStrLn "Illegal move! Choose another one."
+                        chooseMove Human gs
+            chooseCapture :: Human -> GameState -> IO Capture
+            chooseCapture Human gs = do
+                -- "while move is illegal: get move"
+                capture <- getCapture gs
+                if isLegalCapture gs capture
+                    then do
+                        return capture
+                    else do
+                        chooseCapture Human gs
 
 -- put this inside Player/chooseMove instead?
 
@@ -100,7 +89,6 @@ checkExecuteCapture p gs move
 
 -- TODO: Win states should have + or - infinity
 
-
 -- should work fine (returning Infinity) even if black stones are 0
 heuristic :: GameState -> Float
 heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFloat b Black
@@ -108,28 +96,20 @@ heuristic (GameState b _ _ ) = getPlayerStonesFloat b White / getPlayerStonesFlo
         getPlayerStonesFloat :: Board -> Piece -> Float
         getPlayerStonesFloat b playerColor = int2Float $ getSpaceTypeNumber b (BoardField $ Just playerColor)
 
-
 -- the MoveCapture containing the following capture if it occurs makes the minimax simpler
     -- problem: we need to simulate all possible captures as well
     -- and some moves will induce captures while others won't
     -- solution: replace child states that result in a capture with a set of child states after all possible captures
     -- though this will increase the branching factor considerably...
 
-
 -- bool argument: reverse/get minimum instead
 getIndexOfMaximum :: Ord a => [a] -> Bool -> Int
 getIndexOfMaximum xs True = head $ filter ((== maximum xs) . (xs !!)) [0..]
 getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
 
-
 -- int argument: depth of evaluation
 -- returns best move and value of best move for recursion
 -- essentially this function should just simulate "play", except that it cuts off at a certain depth and returns an evaluation...
-
--- bool : optimize performance
--- if the board is empty: play in the center
--- otherwise play only on spaces with at least one nonempty neighbor to boost performance
-
 
 minimaxMoveGetter :: Int -> GameState -> (MoveCapture, Float)
 minimaxMoveGetter depth gs = do
@@ -137,8 +117,9 @@ minimaxMoveGetter depth gs = do
     -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
     -- or, ideally, rewrite this so it fully simulates the Play function
     --actually, instead check if the phase has ended
+    _
     if null moveCaps then do
-        (dummyMove, 1)
+        _ (dummyMove, 1)
     else do
         minimaxGetBestMove depth gs moveCaps
     where dummyMove = MoveWithoutCapture (Drop White (0,0))
@@ -163,16 +144,9 @@ minimaxGetBestMove depth (GameState b playerColor phase) moveCaps = do
 
     where gs = GameState b playerColor phase
 
-
 data HeuristicAI = HeuristicAI
 
 instance Player HeuristicAI where
-    -- chooseMove :: HeuristicAI -> GameState -> IO Move
-    -- chooseMove HeuristicAI (GameState b piece PhaseDrop) = _
-    -- chooseMove HeuristicAI (GameState b piece PhaseRemove) = _
-    -- chooseMove HeuristicAI (GameState b piece PhaseShift) = _ --TODO: get one of the player's stones that has a neighboring space free, move it there
-    -- chooseCapture :: HeuristicAI -> GameState -> IO Capture
-    -- chooseCapture HeuristicAI (GameState b piece _) = _
     chooseMoveCapture :: HeuristicAI -> GameState -> IO MoveCapture
     chooseMoveCapture HeuristicAI gs = do
         let chosenMove = fst (minimaxMoveGetter 3 gs)
@@ -218,5 +192,5 @@ getNBestMovesHeuristic n (GameState board piece phase) = do
     where gs = GameState board piece phase
 
 getBestHeuristicMCs :: GameState -> [MoveCapture]
-getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 5 gs) (getNBestMovesHeuristic 10 gs)
+getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 5 gs) (getNBestMovesHeuristic 14 gs)
 

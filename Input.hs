@@ -2,7 +2,6 @@ module Input where
 import Moves (Move (..), Capture(..))
 import Board (Piece(..), Phase (..), GameState (..))
 import Data.Char (ord, digitToInt, isAlpha, isDigit)
-import GHC.Data.Maybe (isNothing)
 import Control.Applicative (Applicative(liftA2))
 import Debug.Trace (trace)
 

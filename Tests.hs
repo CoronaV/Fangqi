@@ -98,9 +98,11 @@ smallBoardTest = playGame HeuristicAI Human (3,3)
 
 --need: better console interaction for announcing captures/AI moves, input error msg, correct order of turn message, board
 -- support for one-line shift moves? "b5 d5"
--- speed up AI, e.g. by selecting captures entirely heuristically (enemy piece in most squares)
 -- choose top 15 moves by heuristics (number of pieces next to it), then minimax among them
 -- implement repetition draws, define both heuristics and mechanics for loss if no moves available and phase end conditions not met
+
+
+--switching turns between phases
 
 --remove unused imports
 

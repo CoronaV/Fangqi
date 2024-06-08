@@ -1,7 +1,6 @@
 module Moves where
 import Board
-    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard, emptyRow, spaceHasTypeEmptyExtend )
-import Data.Maybe (isNothing, fromMaybe)
+    ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, isInBounds, spaceHasTypeEmptyExtend )
 import GHC.Utils.Misc (count)
 import Data.Char (chr, ord)
 

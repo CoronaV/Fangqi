@@ -1,9 +1,9 @@
-import Data.Maybe (isNothing, fromMaybe)
+import Data.Maybe (isNothing)
 import Debug.Trace (trace)
 import Board
-    ( Board, BoardRow, BoardField(..), Piece(..), boardRows, emptyBoard, GameState (..), Phase (..), isLeftUpCornerOfSquare, isAnyCornerOfSquare, displayGameState )
+    ( Board, BoardField(..), Piece(..), emptyBoard, GameState (..), Phase (..), displayGameState )
 import Player (Player (..), RandomAI (..), Human (..))
-import Moves (Move(..),checkLegalAndResolve, switchColor, getSpaceOfType, getSpaceTypeNumber, MoveCapture (..), checkLegalAndResolveMC)
+import Moves (switchColor, getSpaceOfType, getSpaceTypeNumber, MoveCapture (..), checkLegalAndResolveMC)
 
 
 -- switchTurn :: GameState -> GameState
