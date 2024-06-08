@@ -3,6 +3,7 @@ import Board
     ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, boardRows, boardCols, isInBounds, emptyBoard, emptyRow, spaceHasTypeEmptyExtend )
 import Data.Maybe (isNothing, fromMaybe)
 import GHC.Utils.Misc (count)
+import Data.Char (chr, ord)
 
 
 -- functions related to making moves
@@ -15,18 +16,28 @@ import GHC.Utils.Misc (count)
 data Move = Drop Piece (Int, Int) | Remove Piece (Int, Int) | Shift Piece (Int, Int) (Int, Int)
     deriving Show
 
+coordsToStr :: (Int,Int) -> String
+coordsToStr (i,j) = chr (j+ord 'a') : show (i+1)
+
+describeMove :: Move -> String
+describeMove (Drop p (i,j)) = "Drop a " ++ show p ++ " stone on " ++ coordsToStr (i,j)
+describeMove (Remove p (i,j)) = "Remove a " ++ show (switchColor p) ++ " stone from " ++ coordsToStr (i,j)
+describeMove (Shift p (i,j) (i2,j2)) = "Shift a " ++ show p ++ " stone from " ++ coordsToStr (i,j) ++ " to " ++ coordsToStr (i2,j2)
 
 data Capture = Capture Piece (Int, Int)
     deriving Show
 
--- TODO: actually, shouldn't a Move contain the following capture if it occurs??
--- that would make the minimax simpler
+describeCapture :: Capture -> String
+describeCapture (Capture p (i,j)) = "Capture a " ++ show (switchColor p) ++ " stone from " ++ coordsToStr (i,j)
 
--- a move with *potentially* a capture included
--- a capture move can occur independently, however, in the second phase!
+-- a move with *potentially* a capture included, makes minimax simpler
+-- a "capture" move can occur independently, however, in the second phase!
 data MoveCapture = MoveWithCapture Move Capture | MoveWithoutCapture Move
-    --MoveWithCapture Move (Maybe Move )
     deriving Show
+
+describeMoveCapture :: MoveCapture -> String
+describeMoveCapture (MoveWithCapture m c) = describeMove m ++ " and " ++ describeCapture c
+describeMoveCapture (MoveWithoutCapture m) = describeMove m
 
 replaceByIndex :: [a] -> Int -> a -> [a]
 replaceByIndex [] _ _ = []
@@ -195,7 +206,6 @@ getPossibleMoves (GameState b piece PhaseRemove) = map (coordsToMove (GameState 
 
 -- legal shift move: 
 -- from coord is own stone
-
 getPossibleMoves (GameState b piece PhaseShift) = concatMap (coordsFromToShiftMoveList (GameState b piece PhaseShift)) fromSquares
     where
         fromSquares = map toCoords $ filter isOwn (flattenWithCoords b)

@@ -1,7 +1,7 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board, getNonEmptyNeighborCount)
-import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore)
-import Input (getMoveFRFRNoCap, getCapture)
+import Moves (Move (..), Capture(..), getSpaceOfType, switchColor, isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore, describeMoveCapture)
+import Input (requestMoveUntilGot, getCapture)
 import Data.Maybe (fromMaybe)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)
@@ -45,11 +45,7 @@ instance Player RandomAI where
         else do -- no capture
             return $ MoveWithoutCapture chosenMove
 
-data Human = Human --merge with RandomAI into one type with two constructors?
-
---TODO: need to check human moves (incl. captures) for legality..
-
--- get the GameState in Input.hs to test it or do it in Player.hs?
+data Human = Human
 
 instance Player Human where
     chooseMove :: Human -> GameState -> IO Move
@@ -57,11 +53,12 @@ instance Player Human where
     -- info about the move will be filled in by the system
     chooseMove Human gs = do
         -- "while move is illegal: get move"
-        move <- getMoveFRFRNoCap gs
+        move <- requestMoveUntilGot gs
         if isLegal gs move
             then do
                 return move
             else do
+                putStrLn "Illegal move! Choose another one."
                 chooseMove Human gs
 
     chooseCapture :: Human -> GameState -> IO Capture
@@ -75,7 +72,6 @@ instance Player Human where
                 chooseCapture Human gs
     chooseMoveCapture :: Human -> GameState -> IO MoveCapture
     chooseMoveCapture Human gs = do
-        -- "while move is illegal: get move"
         chosenMove <- chooseMove Human gs
         let newState = checkLegalAndResolve gs chosenMove
         let mayCapture = checkCaptureAfter newState chosenMove
@@ -97,13 +93,12 @@ checkExecuteCapture p gs move
     | otherwise = gs
 
 -- the heuristic will say how good a position is for White
--- or for a specified player?
--- TODO: or should it automatically take the player on the move from the GameState? Or the player who just made the move?
--- or maybe for white and black will try to minimize it?
 
--- goodness = # own stones / # enemy stones
+-- goodness = # white stones / # black stones
 -- not a subtraction because having 1 stone advantage is more important if there are fewer stones
 -- ...at least in the "shift phase" 
+
+-- TODO: Win states should have + or - infinity
 
 
 -- should work fine (returning Infinity) even if black stones are 0
@@ -136,23 +131,20 @@ getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
 -- otherwise play only on spaces with at least one nonempty neighbor to boost performance
 
 
-minimaxExceptionCatcher :: Int -> GameState -> (MoveCapture, Float)
-minimaxExceptionCatcher depth gs = do
-    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
+minimaxMoveGetter :: Int -> GameState -> (MoveCapture, Float)
+minimaxMoveGetter depth gs = do
+    let moveCaps = getBestHeuristicMCs gs -- get available combinations of move (+ capture, if applicable)
     -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
     -- or, ideally, rewrite this so it fully simulates the Play function
     --actually, instead check if the phase has ended
     if null moveCaps then do
         (dummyMove, 1)
     else do
-        minimaxGetBestMove depth gs
+        minimaxGetBestMove depth gs moveCaps
     where dummyMove = MoveWithoutCapture (Drop White (0,0))
 
-minimaxGetBestMove :: Int -> GameState -> (MoveCapture, Float)
-minimaxGetBestMove 0 (GameState b playerColor phase) = do -- end recursion at depth 0
-    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
-    -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
-    -- or, ideally, rewrite this so it fully simulates the Play function
+minimaxGetBestMove :: Int -> GameState -> [MoveCapture] -> (MoveCapture, Float)
+minimaxGetBestMove 0 (GameState b playerColor phase) moveCaps = do -- end recursion at depth 0
     let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
     -- evaluate child states and return the move that leads to the best one
     let evaluations = map heuristic childStates
@@ -161,14 +153,11 @@ minimaxGetBestMove 0 (GameState b playerColor phase) = do -- end recursion at de
 
     where gs = GameState b playerColor phase
 
-minimaxGetBestMove depth (GameState b playerColor phase) = do
-    let moveCaps = getPossibleMCs gs -- get available combinations of move (+ capture, if applicable)
-        -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
-        -- or, ideally, rewrite this so it fully simulates the Play function
+minimaxGetBestMove depth (GameState b playerColor phase) moveCaps = do
     let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
 
     -- what exactly are the best responses to the investigated moves doesn't interest us, we want just the evaluation of the moves
-    let (_,evaluations) = unzip $ map (minimaxExceptionCatcher (depth-1)) childStates
+    let (_,evaluations) = unzip $ map (minimaxMoveGetter (depth-1)) childStates
     let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
     (moveCaps!!bestChildIndex, evaluations!!bestChildIndex)
 
@@ -185,11 +174,17 @@ instance Player HeuristicAI where
     -- chooseCapture :: HeuristicAI -> GameState -> IO Capture
     -- chooseCapture HeuristicAI (GameState b piece _) = _
     chooseMoveCapture :: HeuristicAI -> GameState -> IO MoveCapture
-    chooseMoveCapture HeuristicAI gs = return $ fst (minimaxExceptionCatcher 3 gs)
+    chooseMoveCapture HeuristicAI gs = do
+        let chosenMove = fst (minimaxMoveGetter 3 gs)
+        putStrLn $ "The AI has chosen to: " ++ describeMoveCapture chosenMove
+        return chosenMove
 
 -- piece is the *capturing* color
-getCaptureHeuristic :: Board -> Capture -> Float
-getCaptureHeuristic b (Capture piece (i,j)) = int2Float $ getNonEmptyNeighborCount b (i,j)
+getCaptureHeuristic :: Board -> Capture -> Int
+getCaptureHeuristic b (Capture piece (i,j)) = getNonEmptyNeighborCount b (i,j)
+
+compareHeuristics :: (a, Int) -> (a, Int) -> Ordering
+compareHeuristics a b = if snd a < snd b then GT else LT -- "reversed" to make the sorts below put the highest heuristics at the beginning
 
 -- often it doesn't make much of a difference which pieces you capture
 -- typically it's better to capture enemy pieces that are next to more enemy pieces (forming a square)
@@ -200,14 +195,28 @@ getNBestCapturesHeuristic n (GameState board piece phase) move
         let captures = getPossibleCaptures gs -- a capturing move
         let heuristicValues = map (getCaptureHeuristic board) captures
         let zipped = zip captures heuristicValues
-        let sorted = sortBy (\a b -> if snd a > snd b then GT else LT) zipped
+        let sorted = sortBy compareHeuristics zipped
         let bestCaptures = take n $ map fst sorted --extract the best captures
         map (MoveWithCapture move) bestCaptures
     | otherwise = [MoveWithoutCapture move]
     where gs = GameState board piece phase
 
+-- it's good to drop in the middle of own and enemy pieces
+getMoveHeuristic :: Board -> Move -> Int
+getMoveHeuristic b (Drop piece (i,j)) = getNonEmptyNeighborCount b (i,j)
+getMoveHeuristic b (Remove piece (i,j)) = getNonEmptyNeighborCount b (i,j)
+getMoveHeuristic b (Shift piece (i,j) (i2,j2)) = getNonEmptyNeighborCount b (i2,j2) -- it is important to move *toward* groups of pieces
 
+getNBestMovesHeuristic :: Int -> GameState -> [Move]
+getNBestMovesHeuristic n (GameState board piece phase) = do
+    let moves = getPossibleMoves gs
+    let heuristicValues = map (getMoveHeuristic board) moves
+    let zipped = zip moves heuristicValues
+    let sorted = sortBy compareHeuristics zipped
+    let bestMoves = take n $ map fst sorted --extract the best captures
+    bestMoves
+    where gs = GameState board piece phase
 
 getBestHeuristicMCs :: GameState -> [MoveCapture]
-getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 4 gs) (getPossibleMoves gs)
+getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 5 gs) (getNBestMovesHeuristic 10 gs)
 

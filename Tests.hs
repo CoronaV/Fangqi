@@ -1,6 +1,6 @@
 module Tests where
 import Board (Board, GameState(..), emptyBoard, Piece (..), Phase (..), BoardField (..), emptyRow, isLeftUpCornerOfSquare)
-import Player (RandomAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..))
+import Player (RandomAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..), minimaxMoveGetter)
 import Main (playPhase, dropPhaseEndCheck, removePhaseEndCheck, nextPhase, playGame, shiftPhaseEndCheck, evaluateEndPosition)
 import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC)
 
@@ -47,7 +47,7 @@ testState = GameState minimaxTestBoard White PhaseDrop
 
 
 checkAlphaBeta :: (MoveCapture, Float)
-checkAlphaBeta = minimaxGetBestMove 3 testState
+checkAlphaBeta = minimaxMoveGetter 3 testState
 
 chAB2 = minimaxGetBestMove 2 (checkLegalAndResolveMC testState (MoveWithoutCapture (Drop White (0,2))) )
 
@@ -87,22 +87,22 @@ fullBoard = [
 
 
 fbTest :: (MoveCapture, Float)
-fbTest = minimaxGetBestMove 0 (GameState fullBoard White PhaseDrop)
+fbTest = minimaxMoveGetter 0 (GameState fullBoard White PhaseDrop)
 
 
 overallTest :: IO ()
-overallTest = playGame Human Human (7,7)
+overallTest = playGame Human HeuristicAI (7,7)
 
 smallBoardTest :: IO()
-smallBoardTest = playGame HeuristicAI Human (5,5)
+smallBoardTest = playGame HeuristicAI Human (3,3)
 
---need: better console interaction for announcing captures/AI moves, getting Shift moves, announcing what type of move you're doing
+--need: better console interaction for announcing captures/AI moves, input error msg, correct order of turn message, board
 -- support for one-line shift moves? "b5 d5"
 -- speed up AI, e.g. by selecting captures entirely heuristically (enemy piece in most squares)
 -- choose top 15 moves by heuristics (number of pieces next to it), then minimax among them
+-- implement repetition draws, define both heuristics and mechanics for loss if no moves available and phase end conditions not met
 
--- define both heuristics and mechanics for loss if no moves available and phase end conditions not met
-
+--remove unused imports
 
 -- Why didn't the AI see this coming? Minimax depth 3
 

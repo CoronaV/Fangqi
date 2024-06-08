@@ -36,7 +36,8 @@ playPhase p1 p2 endCondition current = do
 playGame :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
 playGame p1 p2 (i,j) = do
     putStrLn "Start of game, the players take turns dropping pieces"
-    dropEnd <- playPhase p1 p2 dropPhaseEndCheck (GameState (emptyBoard i j) White PhaseDrop )
+    displayGameState startState
+    dropEnd <- playPhase p1 p2 dropPhaseEndCheck startState
     putStrLn "End of drop phase, now each player removes one piece"
     removeEnd <- playPhase p1 p2 removePhaseEndCheck (nextPhase dropEnd)
     putStrLn "End of remove phase, now players take turn shifting a piece any number of free squares vertically or horizontally."
@@ -44,6 +45,7 @@ playGame p1 p2 (i,j) = do
     putStrLn "End of game. The result is:"
     putStrLn (evaluateEndPosition shiftEnd)
     return ()
+        where startState = GameState (emptyBoard i j) White PhaseDrop
 
 
 -- players stop dropping stones when the board is filled
