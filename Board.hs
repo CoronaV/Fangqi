@@ -1,8 +1,7 @@
 module Board where
 
-{- 
-Xinjiang Fāngqí is played on a 7×7 board.
--}
+
+--Xinjiang Fāngqí is played on a 7×7 [square tiling] board.
 
 data Piece = Black | White
     deriving (Eq, Show)
@@ -63,8 +62,14 @@ emptyBoard rows cols = replicate rows (emptyRow cols)
 data Phase = PhaseDrop | PhaseRemove | PhaseShift
     deriving (Show, Eq)
 -- board, whose move it is + what is the current phase?
-data GameState = GameState Board Piece Phase
+data GameState = GameState { board :: Board, piece :: Piece, phase :: Phase } --Board Piece Phase
     deriving Show
+
+unpackGSToBoard :: (Board -> a) -> GameState -> a
+unpackGSToBoard boardFunc (GameState b p phase) = boardFunc b
+
+unpackGSToPhase :: (Phase -> a) -> GameState -> a
+unpackGSToPhase phaseFunc (GameState b p phase) = phaseFunc phase
 
 displayGameState :: GameState -> IO()
 displayGameState (GameState b piece phase) = do

@@ -3,6 +3,7 @@ import Board
     ( Board, BoardRow, BoardField(..), Piece (..), GameState(..), Phase(..), FlattenedBoard, flattenWithCoords, isAnyCornerOfSquare, isInBounds, spaceHasTypeEmptyExtend )
 import GHC.Utils.Misc (count)
 import Data.Char (chr, ord)
+import Data.Maybe (isNothing)
 
 
 -- functions related to making moves
@@ -102,11 +103,6 @@ getSpaceTypeNumber :: Board -> BoardField -> Int
 getSpaceTypeNumber b fieldType = count (fieldType ==) (concat b)
 
 
--- keep the gamestate the same if illegal to reprompt the move if the player is human? write a message to output? TODO
--- for now skip checking if the move is in the correct phase or the correct player is playing
--- phase changes will be checked in main.hs
-
-
 moveInBounds :: Board -> Move -> Bool
 moveInBounds b (Drop piece (i,j)) = isInBounds b (i,j)
 moveInBounds b (Remove piece (i,j)) = isInBounds b (i,j)
@@ -137,14 +133,22 @@ isLegalMC gs (MoveWithoutCapture move) = isLegal gs move
 checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
     | isLegal (GameState b piece phase) move = GameState (changeBoard b move) (switchColor piece) phase
-    | otherwise = GameState b piece phase
+    | otherwise = error "Attempted to perform illegal move"
 
 
 --switches turn
+-- does not check if the move is in the correct phase or the correct player is playing
+-- phase changes will be checked in main.hs -- actually, that's a bad idea, because we need to check phase
+-- changes in minimax exploration of the game tree. Also, that means this function would hand back
+-- an "illogical" game state temporarily
 checkLegalAndResolveMC :: GameState -> MoveCapture -> GameState
-checkLegalAndResolveMC (GameState b piece phase) move
-    | isLegalMC (GameState b piece phase) move = GameState (changeBoardMC b move) (switchColor piece) phase
-    | otherwise = GameState b piece phase
+checkLegalAndResolveMC (GameState b piece phase) move = do
+    let legal = isLegalMC (GameState b piece phase) move
+    if legal then do
+        -- apply move and change phase if appropriate
+        changePhaseIfNecessary $ GameState (changeBoardMC b move) (switchColor piece) phase
+    else do
+        error "Attempted to perform illegal move" --GameState b piece phase?
 
 
 --  reports back Bool capture has happened Y/N to the main loop
@@ -180,7 +184,7 @@ pieceCanMoveTo b from = freeSpacesInDirection b from (0,1) ++
                         freeSpacesInDirection b from (1,0) ++
                         freeSpacesInDirection b from (-1,0)
 
--- TODO: move to Board.hs
+-- move to Board.hs?
 -- only the four orthogonal unit directions are necessary, thankfully
 freeSpacesInDirection :: Board -> (Int, Int) -> (Int, Int) -> [(Int, Int)]
 freeSpacesInDirection b (fromI, fromJ) (vectI,vectJ)
@@ -230,7 +234,41 @@ getCapturesIfApplicable gs move
     | checkCaptureBefore gs move = map (MoveWithCapture move) (getPossibleCaptures gs) -- a capturing move
     | otherwise = [MoveWithoutCapture move]
 
-
-
 getPossibleMCs :: GameState -> [MoveCapture]
 getPossibleMCs gs = concatMap (getCapturesIfApplicable gs) (getPossibleMoves gs)
+
+
+phaseEndCondition :: Phase -> (GameState -> Bool)
+phaseEndCondition PhaseDrop = dropPhaseEndCheck
+phaseEndCondition PhaseRemove = removePhaseEndCheck
+phaseEndCondition PhaseShift = shiftPhaseEndCheck
+
+gamestateCheckPhaseEnd :: GameState -> Bool
+gamestateCheckPhaseEnd gs = phaseEndCondition (phase gs) gs
+
+changePhaseIfNecessary :: GameState -> GameState
+changePhaseIfNecessary gs
+    | gamestateCheckPhaseEnd gs = nextPhase gs
+    | otherwise = gs
+
+-- players stop dropping stones when the board is filled
+dropPhaseEndCheck :: GameState -> Bool
+dropPhaseEndCheck (GameState b _ _) = isNothing $ getSpaceOfType b (BoardField Nothing)
+
+
+nextPhase :: GameState -> GameState
+nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
+nextPhase (GameState b piece PhaseRemove) = GameState b piece PhaseShift
+
+
+-- 2nd phase: each player removes one of their opponent's stones
+-- players remove one stone each -> there should be two empty spaces
+removePhaseEndCheck :: GameState -> Bool
+removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing) >= 2
+
+
+-- make phase a class with this as method? or merge the endCheck methods into one since GameState contains Phase info?
+-- the game ends if there are no white or no black stones
+-- also TODO: draw on repetition of position, requires keeping history
+shiftPhaseEndCheck :: GameState -> Bool
+shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just White) == 0 || getSpaceTypeNumber b (BoardField $ Just Black) == 0

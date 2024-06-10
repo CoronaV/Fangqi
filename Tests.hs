@@ -1,8 +1,8 @@
 module Tests where
 import Board (Board, GameState(..), emptyBoard, Piece (..), Phase (..), BoardField (..), emptyRow, isLeftUpCornerOfSquare)
 import Player (RandomAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..), minimaxMoveGetter)
-import Main (playPhase, dropPhaseEndCheck, removePhaseEndCheck, nextPhase, playGame, shiftPhaseEndCheck, evaluateEndPosition)
-import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC)
+import Main (playPhase, playGame, evaluateEndPosition)
+import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC, dropPhaseEndCheck, nextPhase)
 
 --debugging:
 chessBoard :: Board
@@ -13,20 +13,20 @@ startState = GameState chessBoard White PhaseDrop
 
 
 sampleGameDropPhase :: IO GameState
-sampleGameDropPhase = playPhase HeuristicAI HeuristicAI dropPhaseEndCheck startState
+sampleGameDropPhase = playPhase HeuristicAI HeuristicAI startState
 
 
 sampleGameRemovePhase :: IO GameState
 sampleGameRemovePhase = do
     start <- sampleGameDropPhase
-    playPhase RandomAI RandomAI removePhaseEndCheck (nextPhase start)
+    playPhase RandomAI RandomAI (nextPhase start)
 
 
 humanGameDropPhase :: IO GameState
-humanGameDropPhase = playPhase Human Human dropPhaseEndCheck startState
+humanGameDropPhase = playPhase Human Human startState
 
 humanAIGameDropPhase :: IO GameState
-humanAIGameDropPhase = playPhase Human RandomAI dropPhaseEndCheck startState
+humanAIGameDropPhase = playPhase Human RandomAI startState
 
 oneStoneBoard :: Board
 oneStoneBoard = [emptyRow 3, [BoardField Nothing, BoardField (Just Black), BoardField Nothing], emptyRow 3]
@@ -58,7 +58,7 @@ gg = checkLegalAndResolveMC testState (MoveWithoutCapture (Drop White (0,2)))
 
 
 minimaxTestDropPhase :: IO GameState
-minimaxTestDropPhase = playPhase HeuristicAI HeuristicAI dropPhaseEndCheck testState
+minimaxTestDropPhase = playPhase HeuristicAI HeuristicAI testState
 
 
 possibleMCs :: [MoveCapture]
@@ -101,6 +101,7 @@ smallBoardTest = playGame HeuristicAI Human (3,3)
 -- choose top 15 moves by heuristics (number of pieces next to it), then minimax among them
 -- implement repetition draws, define both heuristics and mechanics for loss if no moves available and phase end conditions not met
 
+--shift move legality for human players??
 
 --switching turns between phases
 

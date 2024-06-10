@@ -117,9 +117,9 @@ minimaxMoveGetter depth gs = do
     -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
     -- or, ideally, rewrite this so it fully simulates the Play function
     --actually, instead check if the phase has ended
-    _
+    
     if null moveCaps then do
-        _ (dummyMove, 1)
+        (dummyMove, 1)
     else do
         minimaxGetBestMove depth gs moveCaps
     where dummyMove = MoveWithoutCapture (Drop White (0,0))
@@ -136,7 +136,6 @@ minimaxGetBestMove 0 (GameState b playerColor phase) moveCaps = do -- end recurs
 
 minimaxGetBestMove depth (GameState b playerColor phase) moveCaps = do
     let childStates = map (checkLegalAndResolveMC gs) moveCaps -- the legality check should be unnecessary, moves should contain only legal moves
-
     -- what exactly are the best responses to the investigated moves doesn't interest us, we want just the evaluation of the moves
     let (_,evaluations) = unzip $ map (minimaxMoveGetter (depth-1)) childStates
     let bestChildIndex = getIndexOfMaximum evaluations (playerColor == White) -- if White, want to maximize the heuristic value
@@ -194,3 +193,14 @@ getNBestMovesHeuristic n (GameState board piece phase) = do
 getBestHeuristicMCs :: GameState -> [MoveCapture]
 getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 5 gs) (getNBestMovesHeuristic 14 gs)
 
+
+-- playPhaseMinimax :: Int -> (GameState -> Bool) -> GameState -> (IO GameState, Float)
+-- playPhaseMinimax depth endCondition current = do
+--     let ended = endCondition current
+--     if ended
+--         then return current
+--     else do
+--         chosenMoveCapture <- chooseMoveCapture HeuristicAI current
+--         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
+--         displayGameState afterMoveCapture
+--         playPhaseMinimax HeuristicAI HeuristicAI endCondition afterMoveCapture
