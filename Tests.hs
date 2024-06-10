@@ -1,8 +1,9 @@
 module Tests where
 import Board (Board, GameState(..), emptyBoard, Piece (..), Phase (..), BoardField (..), emptyRow, isLeftUpCornerOfSquare)
 import Player (RandomAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..), minimaxMoveGetter)
-import Main (playPhase, playGame, evaluateEndPosition)
-import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC, dropPhaseEndCheck, nextPhase)
+import Main (playGame, evaluateEndPosition)
+import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC, dropPhaseEndCheck, nextPhase, gamestateCheckPhaseEnd)
+import Main (playGameInit)
 
 --debugging:
 chessBoard :: Board
@@ -12,21 +13,21 @@ startState :: GameState
 startState = GameState chessBoard White PhaseDrop
 
 
-sampleGameDropPhase :: IO GameState
-sampleGameDropPhase = playPhase HeuristicAI HeuristicAI startState
+-- sampleGameDropPhase :: IO GameState
+-- sampleGameDropPhase = playPhase HeuristicAI HeuristicAI startState
 
 
-sampleGameRemovePhase :: IO GameState
-sampleGameRemovePhase = do
-    start <- sampleGameDropPhase
-    playPhase RandomAI RandomAI (nextPhase start)
+-- sampleGameRemovePhase :: IO GameState
+-- sampleGameRemovePhase = do
+--     start <- sampleGameDropPhase
+--     playPhase RandomAI RandomAI (nextPhase start)
 
 
-humanGameDropPhase :: IO GameState
-humanGameDropPhase = playPhase Human Human startState
+-- humanGameDropPhase :: IO GameState
+-- humanGameDropPhase = playPhase Human Human startState
 
-humanAIGameDropPhase :: IO GameState
-humanAIGameDropPhase = playPhase Human RandomAI startState
+-- humanAIGameDropPhase :: IO GameState
+-- humanAIGameDropPhase = playPhase Human RandomAI startState
 
 oneStoneBoard :: Board
 oneStoneBoard = [emptyRow 3, [BoardField Nothing, BoardField (Just Black), BoardField Nothing], emptyRow 3]
@@ -57,8 +58,8 @@ gg = checkLegalAndResolveMC testState (MoveWithoutCapture (Drop White (0,2)))
 
 
 
-minimaxTestDropPhase :: IO GameState
-minimaxTestDropPhase = playPhase HeuristicAI HeuristicAI testState
+-- minimaxTestDropPhase :: IO GameState
+-- minimaxTestDropPhase = playPhase HeuristicAI HeuristicAI testState
 
 
 possibleMCs :: [MoveCapture]
@@ -91,10 +92,10 @@ fbTest = minimaxMoveGetter 0 (GameState fullBoard White PhaseDrop)
 
 
 overallTest :: IO ()
-overallTest = playGame Human HeuristicAI (7,7)
+overallTest = playGameInit Human HeuristicAI (7,7)
 
 smallBoardTest :: IO()
-smallBoardTest = playGame HeuristicAI Human (3,3)
+smallBoardTest = playGameInit HeuristicAI Human (3,3)
 
 --need: better console interaction for announcing captures/AI moves, input error msg, correct order of turn message, board
 -- support for one-line shift moves? "b5 d5"
@@ -107,24 +108,16 @@ smallBoardTest = playGame HeuristicAI Human (3,3)
 
 --remove unused imports
 
--- Why didn't the AI see this coming? Minimax depth 3
+myBoard ::Board
+myBoard = [
+            [BoardField (Just White), BoardField (Just White), BoardField (Just Black)],
+            [BoardField (Just White), BoardField (Just Black), BoardField (Just White)],
+            [BoardField (Just White), BoardField (Nothing), BoardField (Just White)]
+            ]
 
--- It is now Black's turn in the phase PhaseDrop
--- Make a move.Drop piece to: d5
--- 1|w w w w .
--- 2|w w b b w
--- 3|. b w b .
--- 4|. b b b .
--- 5|. w . b .
---  ----------
---   a b c d e
--- It is now White's turn in the phase PhaseDrop
--- 1|w w w w w
--- 2|w w b b w
--- 3|. b w b .
--- 4|. b b b .
--- 5|. w . b .
---  ----------
---   a b c d e
--- It is now Black's turn in the phase PhaseDrop
--- Make a move.Drop piece to: c5
+ggss :: GameState
+ggss = GameState myBoard Black PhaseShift
+
+
+aaaa :: Bool
+aaaa = gamestateCheckPhaseEnd ggss

@@ -110,16 +110,20 @@ getIndexOfMaximum xs False = head $ filter ((== minimum xs) . (xs !!)) [0..]
 -- int argument: depth of evaluation
 -- returns best move and value of best move for recursion
 -- essentially this function should just simulate "play", except that it cuts off at a certain depth and returns an evaluation...
+-- refactoring idea: rewrite this so it simulates the Play function as cloasely as possible
+
+noMovesAvailableValue :: GameState -> Float
+noMovesAvailableValue (GameState _ White _) = -1/0 -- white loses, -Infinity
+noMovesAvailableValue (GameState _ Black _) = 1/0
 
 minimaxMoveGetter :: Int -> GameState -> (MoveCapture, Float)
 minimaxMoveGetter depth gs = do
     let moveCaps = getBestHeuristicMCs gs -- get available combinations of move (+ capture, if applicable)
-    -- do something if zero moves are available! (i.e. the game has ended... or the phase has ended)
-    -- or, ideally, rewrite this so it fully simulates the Play function
-    --actually, instead check if the phase has ended
-    
+    -- if zero moves are available, the current player loses
+    -- this also naturally handles cases where the player has zero stones left
+
     if null moveCaps then do
-        (dummyMove, 1)
+        (dummyMove, noMovesAvailableValue gs)
     else do
         minimaxGetBestMove depth gs moveCaps
     where dummyMove = MoveWithoutCapture (Drop White (0,0))
@@ -193,14 +197,3 @@ getNBestMovesHeuristic n (GameState board piece phase) = do
 getBestHeuristicMCs :: GameState -> [MoveCapture]
 getBestHeuristicMCs gs = concatMap (getNBestCapturesHeuristic 5 gs) (getNBestMovesHeuristic 14 gs)
 
-
--- playPhaseMinimax :: Int -> (GameState -> Bool) -> GameState -> (IO GameState, Float)
--- playPhaseMinimax depth endCondition current = do
---     let ended = endCondition current
---     if ended
---         then return current
---     else do
---         chosenMoveCapture <- chooseMoveCapture HeuristicAI current
---         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
---         displayGameState afterMoveCapture
---         playPhaseMinimax HeuristicAI HeuristicAI endCondition afterMoveCapture

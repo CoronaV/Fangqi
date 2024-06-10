@@ -259,6 +259,7 @@ dropPhaseEndCheck (GameState b _ _) = isNothing $ getSpaceOfType b (BoardField N
 nextPhase :: GameState -> GameState
 nextPhase (GameState b piece PhaseDrop) = GameState b piece PhaseRemove
 nextPhase (GameState b piece PhaseRemove) = GameState b piece PhaseShift
+nextPhase (GameState b piece PhaseShift) = GameState b piece PhaseShift -- necessary hack for minimax stumbling upon a position with no moves
 
 
 -- 2nd phase: each player removes one of their opponent's stones
@@ -272,3 +273,7 @@ removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing
 -- also TODO: draw on repetition of position, requires keeping history
 shiftPhaseEndCheck :: GameState -> Bool
 shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just White) == 0 || getSpaceTypeNumber b (BoardField $ Just Black) == 0
+
+gamestateCheckGameEnd :: GameState -> Bool
+gamestateCheckGameEnd gs = (phase gs == PhaseShift && shiftPhaseEndCheck gs ) || -- no stones of one color
+                                        null (getPossibleMoves gs) -- no moves available
