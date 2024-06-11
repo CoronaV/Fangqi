@@ -1,6 +1,5 @@
 module Board where
 
-
 --Xinjiang Fāngqí is played on a 7×7 [square tiling] board.
 
 data Piece = Black | White
@@ -64,12 +63,6 @@ data Phase = PhaseDrop | PhaseRemove | PhaseShift
 -- board, whose move it is + what is the current phase?
 data GameState = GameState { board :: Board, piece :: Piece, phase :: Phase } --Board Piece Phase
     deriving Show
-
-unpackGSToBoard :: (Board -> a) -> GameState -> a
-unpackGSToBoard boardFunc (GameState b p phase) = boardFunc b
-
-unpackGSToPhase :: (Phase -> a) -> GameState -> a
-unpackGSToPhase phaseFunc (GameState b p phase) = phaseFunc phase
 
 displayGameState :: GameState -> IO()
 displayGameState (GameState b piece phase) = do

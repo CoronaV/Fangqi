@@ -1,6 +1,6 @@
 module Player where
 import Board (GameState (..), Phase (..), BoardField (..), Piece (..), Board, getNonEmptyNeighborCount)
-import Moves (Move (..), Capture(..), isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, isLegalMC, getPossibleMCs, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore, describeMoveCapture)
+import Moves (Move (..), Capture(..), isLegal, getSpaceTypeNumber, getPossibleMoves, checkLegalAndResolve, MoveCapture (..), getPossibleCaptures, isLegalCapture, checkLegalAndResolveMC, checkCaptureAfter, checkCaptureBefore, describeMoveCapture)
 import Input (requestMoveUntilGot, getCapture)
 import Control.Applicative (Applicative(liftA2))
 import GHC.Float (int2Float)

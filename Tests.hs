@@ -1,9 +1,8 @@
 module Tests where
 import Board (Board, GameState(..), emptyBoard, Piece (..), Phase (..), BoardField (..), emptyRow, isLeftUpCornerOfSquare)
 import Player (RandomAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..), minimaxMoveGetter)
-import Main (playGame, evaluateEndPosition)
+import Main ( playGame, evaluateEndPosition, playGameInit )
 import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC, dropPhaseEndCheck, nextPhase, gamestateCheckPhaseEnd)
-import Main (playGameInit)
 
 --debugging:
 chessBoard :: Board
