@@ -5,14 +5,14 @@ import Moves (switchColor, MoveCapture (..), checkLegalAndResolveMC, gamestateCh
 
 
 -- use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
-playGameInit :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
-playGameInit p1 p2 (i,j) = do
+playGame :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
+playGame p1 p2 (i,j) = do
     displayGameState startState
-    playGame p1 p2 startState
+    playGameInternal p1 p2 startState
     where startState = GameState (emptyBoard i j) White PhaseDrop
 
-playGame :: (Player p1, Player p2) => p1 -> p2 -> GameState -> IO ()
-playGame p1 p2 current = do
+playGameInternal :: (Player p1, Player p2) => p1 -> p2 -> GameState -> IO ()
+playGameInternal p1 p2 current = do
     let gameEnded = gamestateCheckGameEnd current -- phase ends are handled by checkLegalAndResolveMC
     if gameEnded
         then do
@@ -22,7 +22,7 @@ playGame p1 p2 current = do
         chosenMoveCapture <- chooseMoveCapture p1 current
         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
         displayGameState afterMoveCapture
-        playGame p2 p1 afterMoveCapture
+        playGameInternal p2 p1 afterMoveCapture
 
 
 evaluateEndPosition :: GameState -> String

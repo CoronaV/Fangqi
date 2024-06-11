@@ -12,27 +12,27 @@ import Data.List ( sortBy )
 class Player p where
     chooseMoveCapture :: p -> GameState -> IO MoveCapture
 
-data RandomAI = RandomAI
+data DummyAI = DummyAI
 
-instance Player RandomAI where
-    chooseMoveCapture :: RandomAI -> GameState -> IO MoveCapture
-    chooseMoveCapture RandomAI gs = do
+instance Player DummyAI where
+    chooseMoveCapture :: DummyAI -> GameState -> IO MoveCapture
+    chooseMoveCapture DummyAI gs = do
         let chosenMove = head (getPossibleMoves gs)
         let newState = checkLegalAndResolve gs chosenMove
         let mayCapture = checkCaptureAfter newState chosenMove
         if mayCapture then do
-            chosenCapture <- chooseCapture RandomAI gs
+            chosenCapture <- chooseCapture DummyAI gs
             return $ MoveWithCapture chosenMove chosenCapture
         else do -- no capture
             return $ MoveWithoutCapture chosenMove
         where
-            chooseMove :: RandomAI -> GameState -> IO Move
+            chooseMove :: DummyAI -> GameState -> IO Move
             -- if there is no legal move, a function checking for end states messed up, so the AI will just make whatever move e.g. (0,0)
             -- and cause an exception down the line
             -- play on the first free field from top left, if there is any
-            chooseMove RandomAI gs = return $ head (getPossibleMoves gs)
-            chooseCapture :: RandomAI -> GameState -> IO Capture
-            chooseCapture RandomAI gs = return $ head (getPossibleCaptures gs)
+            chooseMove DummyAI gs = return $ head (getPossibleMoves gs)
+            chooseCapture :: DummyAI -> GameState -> IO Capture
+            chooseCapture DummyAI gs = return $ head (getPossibleCaptures gs)
 
 data Human = Human
 
