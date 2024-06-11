@@ -70,24 +70,13 @@ instance Player Human where
                     else do
                         chooseCapture Human gs
 
--- put this inside Player/chooseMove instead?
-
--- if a 2x2 square is not formed this function will leave the GameState as it is
--- needs a player to choose a piece to capture
--- the Move is the move that causes the capture, not the capturing move!
--- the GameState is the state after the move??
-checkExecuteCapture :: (Player p) => p -> GameState -> Move -> GameState
-checkExecuteCapture p gs move
-    | checkCaptureAfter gs move = gs --TODO! change the gamestate with executeCapture
-    | otherwise = gs
 
 -- the heuristic will say how good a position is for White
 
 -- goodness = # white stones / # black stones
 -- not a subtraction because having 1 stone advantage is more important if there are fewer stones
 -- ...at least in the "shift phase" 
-
--- TODO: Win states should have + or - infinity
+-- Win states have + or - infinity
 
 -- should work fine (returning Infinity) even if black stones are 0
 heuristic :: GameState -> Float

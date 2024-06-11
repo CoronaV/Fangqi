@@ -129,7 +129,6 @@ isLegalMC gs (MoveWithoutCapture move) = isLegal gs move
 -- check if move is in bounds and is played on a valid target field
 -- will not change turn because it's necessary to capture with the same color if a capture is possible before changing turn
 -- and the capture can't be included here to keep the IO monad out of this module
--- TODO: check in a 'shift' move if the coords are in a row or column and spaces between them are free 
 checkLegalAndResolve :: GameState -> Move -> GameState
 checkLegalAndResolve (GameState b piece phase) move
     | isLegal (GameState b piece phase) move = GameState (changeBoard b move) (switchColor piece) phase
@@ -274,7 +273,6 @@ removePhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField Nothing
 
 -- make phase a class with this as method? or merge the endCheck methods into one since GameState contains Phase info?
 -- the game ends if there are no white or no black stones
--- also TODO: draw on repetition of position, requires keeping history
 shiftPhaseEndCheck :: GameState -> Bool
 shiftPhaseEndCheck (GameState b _ _) = getSpaceTypeNumber b (BoardField $ Just White) == 0 || getSpaceTypeNumber b (BoardField $ Just Black) == 0
 
