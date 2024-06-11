@@ -18,13 +18,16 @@ import Moves (switchColor, getSpaceOfType, getSpaceTypeNumber, MoveCapture (..),
 
 -- use "do" here to prevent the IO monad from getting everywhere (like move validity checking where it's not appropriate)
 playGameInit :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
-playGameInit p1 p2 (i,j) = playGame p1 p2 (GameState (emptyBoard i j) White PhaseDrop)
+playGameInit p1 p2 (i,j) = do
+    displayGameState startState
+    playGame p1 p2 startState
+    where startState = GameState (emptyBoard i j) White PhaseDrop
 
 playGame :: (Player p1, Player p2) => p1 -> p2 -> GameState -> IO ()
 playGame p1 p2 current = do
     let gameEnded = gamestateCheckGameEnd current -- phase ends are handled by checkLegalAndResolveMC
     if gameEnded
-        then do 
+        then do
         putStrLn "End of game. The result is:"
         putStrLn (evaluateEndPosition current)
     else do
@@ -32,12 +35,6 @@ playGame p1 p2 current = do
         let afterMoveCapture = checkLegalAndResolveMC current chosenMoveCapture
         displayGameState afterMoveCapture
         playGame p2 p1 afterMoveCapture
-
-
--- (Int,Int) = size of board
--- playGame :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
--- playGame p1 p2 (i,j) = playGameWithHistory
-
 
 
 -- playGameWithHistory :: (Player p1, Player p2) => p1 -> p2 -> (Int,Int) -> IO ()
@@ -71,12 +68,11 @@ playGame p1 p2 current = do
 --         where startState = GameState (emptyBoard i j) White PhaseDrop
 
 
---TODO: add captures to the drop phase! work on this since this will be required in the shift phase too
--- some Fangqi variations have the players count the squares and remove pieces all at once at the end of the drop phase,
--- but it might be easier to just remove a piece immediately as in the shift phase?
-
 evaluateEndPosition :: GameState -> String
-evaluateEndPosition (GameState b piece _)
-    | isNothing $ getSpaceOfType b (BoardField $ Just White) = "Black won the game!" --there are no white pieces left
-    | isNothing $ getSpaceOfType b (BoardField $ Just Black) = "White won the game!"
-    | otherwise = "The game is drawn!"
+evaluateEndPosition gs = do
+    let gameEnded = gamestateCheckGameEnd gs
+    if gameEnded then do
+        let winner = show (switchColor (piece gs)) -- the player that should move can't move -> win for the other player
+        winner ++ " won the game!"
+    else do
+        error "Game ended prematurely."

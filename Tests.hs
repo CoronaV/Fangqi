@@ -95,16 +95,12 @@ overallTest :: IO ()
 overallTest = playGameInit Human HeuristicAI (7,7)
 
 smallBoardTest :: IO()
-smallBoardTest = playGameInit HeuristicAI Human (3,3)
+smallBoardTest = playGameInit HeuristicAI Human (4,4)
 
 --need: better console interaction for announcing captures/AI moves, input error msg, correct order of turn message, board
--- support for one-line shift moves? "b5 d5"
--- choose top 15 moves by heuristics (number of pieces next to it), then minimax among them
--- implement repetition draws, define both heuristics and mechanics for loss if no moves available and phase end conditions not met
+-- define both heuristics and mechanics for loss if no moves available and phase end conditions not met
 
 --shift move legality for human players??
-
---switching turns between phases
 
 --remove unused imports
 

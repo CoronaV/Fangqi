@@ -153,7 +153,10 @@ checkLegalAndResolveMC (GameState b piece phase) move = do
 
 --  reports back Bool capture has happened Y/N to the main loop
 -- which will choose the capturing move and send it here to be executed
--- note: a piece should not be able to form a square with its former position!
+-- note: a shifted piece should not be able to form a square with its former position!
+
+-- some Fangqi variations have the players count the squares and remove pieces all at once at the end of the drop phase,
+-- but it is simpler to just remove a piece immediately like in the shift phase
 
 -- also dropped pieces won't be detected until after the move has taken place
 -- to this end, captures will be checked *after* the move is executed!!
@@ -246,6 +249,7 @@ phaseEndCondition PhaseShift = shiftPhaseEndCheck
 gamestateCheckPhaseEnd :: GameState -> Bool
 gamestateCheckPhaseEnd gs = phaseEndCondition (phase gs) gs
 
+-- bool reports if phase change has happened
 changePhaseIfNecessary :: GameState -> GameState
 changePhaseIfNecessary gs
     | gamestateCheckPhaseEnd gs = nextPhase gs
