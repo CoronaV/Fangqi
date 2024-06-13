@@ -1,6 +1,6 @@
 module Tests where
 import Board (Board, GameState(..), emptyBoard, Piece (..), Phase (..), BoardField (..), emptyRow, isLeftUpCornerOfSquare)
-import Player (DummyAI(..), Human (..), HeuristicAI (HeuristicAI), minimaxGetBestMove, Player (..), minimaxMoveGetter)
+import Player (DummyAI(..), Human (..), HeuristicAI (..), minimaxGetBestMove, Player (..), minimaxMoveGetter)
 import Main ( playGame, evaluateEndPosition, playGame )
 import Moves (Move (..), getPossibleMoves, getPossibleMCs, MoveCapture (..), getCapturesIfApplicable, getPossibleCaptures, checkCaptureAfter, checkCaptureBefore, checkLegalAndResolveMC, dropPhaseEndCheck, nextPhase, gamestateCheckPhaseEnd)
 

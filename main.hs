@@ -1,6 +1,6 @@
 import Board
     (Piece(..), emptyBoard, GameState (..), Phase (..), displayGameState )
-import Player (Player (..))
+import Player (Player (..), Human (..), HeuristicAI (..), DummyAI(..))
 import Moves (switchColor, MoveCapture (..), checkLegalAndResolveMC, gamestateCheckGameEnd)
 
 
