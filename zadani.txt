@@ -1,3 +1,4 @@
+English speakers note: this is the project pitch, which was in Czech and there isn't really a reason to translate it. In short it says to implement Fangqi with AI.
 
 Zadání zápočtového programu:
 Implementace hry Fangqi (pravidla: https://en.wikipedia.org/Fangqi) v Haskellu, je to něco jako čínský mlýnek. Fangqi je poměrně jednoduché, ale nenašel jsem žádnou existující počítačovou implementaci.
