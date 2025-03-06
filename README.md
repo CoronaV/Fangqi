@@ -10,6 +10,7 @@ Use example: "playGame Human HeuristicAI (7,7)"
 ## Interface
 The program prints the board in this format:
 
+```
 7|.......
 6|.ww....
 5|.......
@@ -19,6 +20,7 @@ The program prints the board in this format:
 1|.......
  --------
   abcdefg
+```
 
 A dot "." represents an empty space, "w" is a white piece and "b" is a black piece.
 The left and bottom edge are labelled with coordinates that are used to input moves and report moves from the AI.
