@@ -1,4 +1,4 @@
-# Neproc_zapoctak_fangqi
+# Nonprocedural programming credit project Fangqi
 
 This repository implements the game Fangqi (方棋) in Haskell. Fangqi is a Chinese board game similar to Nine Men's Morris. For details see https://en.wikipedia.org/wiki/Fangqi.
 
